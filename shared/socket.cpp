@@ -58,3 +58,42 @@ std::vector<uint8_t> TCPSocket::recv(bool block) {
     }
     return out;
 }
+
+TLSSocket::TLSSocket(int fd, SSL_CTX* ctx) : TCPSocket(fd) {
+    this->type = SOCKET_TYPE::TLS;
+    this->ctx = ctx;
+    this->ssl = SSL_new(ctx);
+    SSL_set_fd(this->ssl, this->socket_num);
+}
+std::unique_ptr<TLSSocket> TLSSocket::accept() {
+    int client_fd = ::accept(this->socket_num, nullptr, nullptr);
+    if (client_fd == -1) return nullptr;
+    std::unique_ptr<TLSSocket> client = std::make_unique<TLSSocket>(client_fd, this->ctx);
+    if (SSL_accept(client->ssl) != 1) return nullptr;
+    return client;
+}
+bool TLSSocket::connect() {
+    if (!TCPSocket::connect()) return false;
+    int value = SSL_connect(this->ssl);
+    return value == 1;
+}
+bool TLSSocket::close() {
+    SSL_shutdown(ssl);
+    SSL_free(ssl);
+    return Socket::close();
+}
+bool TLSSocket::send(void* data, uint32_t size) {
+    int result = SSL_write(this->ssl, data, size);
+    return result > 0;
+}
+std::vector<uint8_t> TLSSocket::recv(bool block) {
+    int result = SSL_read(this->ssl, this->recv_buffer, 1024);
+    if (result <= 0) {
+        return {};
+    }
+    std::vector<uint8_t> buffer;
+    for (size_t i = 0; i < (size_t)result; i++) {
+        buffer.push_back(recv_buffer[i]);
+    }
+    return buffer;
+}
