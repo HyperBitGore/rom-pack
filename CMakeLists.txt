@@ -9,9 +9,11 @@ set(CMAKE_CXX_EXTENSIONS OFF)
 # Server executable
 add_executable(server
     server/server.cpp
+    shared/socket.cpp
 )
 
 # Client executable
 add_executable(client
     client/client.cpp
+    shared/socket.cpp
 )

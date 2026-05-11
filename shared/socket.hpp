@@ -1,0 +1,42 @@
+#include <cstdint>
+#include <memory>
+#include <string>
+#include <sys/socket.h>
+#include <vector>
+
+enum class SOCKET_TYPE { TCP, UDP };
+
+class Socket {
+    protected:
+    int32_t socket_num;
+    uint32_t port;
+    std::string ip;
+    char* recv_buffer = nullptr;
+    public:
+    SOCKET_TYPE type;
+    Socket (std::string ip, uint32_t port, SOCKET_TYPE type);
+    ~Socket() {
+        if (recv_buffer) {
+            delete[] recv_buffer;
+        }
+    }
+    virtual bool connect() = 0;
+    virtual bool close();
+    virtual bool send(void* data, uint32_t size) = 0;
+    virtual std::vector<uint8_t> recv(bool block) = 0;
+};
+
+class TCPSocket : public Socket {
+    private:
+    public:
+    TCPSocket (std::string ip, uint32_t port) : Socket(ip, port, SOCKET_TYPE::TCP) {
+        this->socket_num = socket(AF_INET, SOCK_STREAM, 0);
+    }
+    TCPSocket(int fd);
+    bool connect();
+    bool bind();
+    bool listen(int backlog);
+    std::unique_ptr<TCPSocket> accept();
+    bool send(void* data, uint32_t size);
+    std::vector<uint8_t> recv(bool block);
+};
