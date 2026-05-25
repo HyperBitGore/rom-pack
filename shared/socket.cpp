@@ -1,7 +1,11 @@
 #include "socket.hpp"
 #include <arpa/inet.h>
+#include <cerrno>
+#include <cstring>
+#include <iostream>
 #include <memory>
 #include <netinet/in.h>
+#include <openssl/err.h>
 #include <unistd.h>
 
 Socket::Socket(std::string ip, uint32_t port, SOCKET_TYPE type) {
@@ -30,13 +34,17 @@ std::unique_ptr<TCPSocket> TCPSocket::accept() {
     if (client_fd == -1) return nullptr;
     return std::move(std::make_unique<TCPSocket>(client_fd));
 }
-bool TCPSocket::connect() {
+bool TCPSocket::connect(int retry_count) {
     sockaddr_in addr = {};
     addr.sin_family = AF_INET;
     addr.sin_port = htons(this->port);
     addr.sin_addr.s_addr = inet_addr(this->ip.c_str());
-
-    int result = ::connect(this->socket_num, (struct sockaddr*)&addr, sizeof(addr));
+    int result = 1;
+    for (int i = 0; i <= retry_count && result != 0; i++) {
+        result = ::connect(this->socket_num, (struct sockaddr*)&addr, sizeof(addr));
+        if (result != 0)
+            std::cerr << "TCP connect failed: " << strerror(errno) << "\n";
+    }
     return result == 0;
 }
 bool Socket::close() { 
@@ -69,13 +77,23 @@ std::unique_ptr<TLSSocket> TLSSocket::accept() {
     int client_fd = ::accept(this->socket_num, nullptr, nullptr);
     if (client_fd == -1) return nullptr;
     std::unique_ptr<TLSSocket> client = std::make_unique<TLSSocket>(client_fd, this->ctx);
-    if (SSL_accept(client->ssl) != 1) return nullptr;
+    int result = SSL_accept(client->ssl);
+    if (result != 1) {
+        std::cerr << "SSL_accept failed (error " << SSL_get_error(client->ssl, result) << ")\n";
+        ERR_print_errors_fp(stderr);
+        return nullptr;
+    }
     return client;
 }
-bool TLSSocket::connect() {
-    if (!TCPSocket::connect()) return false;
+bool TLSSocket::connect(int retry_count) {
+    if (!TCPSocket::connect(retry_count)) return false;
     int value = SSL_connect(this->ssl);
-    return value == 1;
+    if (value != 1) {
+        std::cerr << "SSL_connect failed (error " << SSL_get_error(this->ssl, value) << ")\n";
+        ERR_print_errors_fp(stderr);
+        return false;
+    }
+    return true;
 }
 bool TLSSocket::close() {
     SSL_shutdown(ssl);

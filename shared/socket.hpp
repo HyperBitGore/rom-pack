@@ -22,7 +22,7 @@ class Socket {
             delete[] recv_buffer;
         }
     }
-    virtual bool connect() = 0;
+    virtual bool connect(int retry_count = 0) = 0;
     virtual bool close();
     virtual bool send(void* data, uint32_t size) = 0;
     virtual std::vector<uint8_t> recv(bool block) = 0;
@@ -34,7 +34,7 @@ class TCPSocket : public Socket {
         this->socket_num = socket(AF_INET, SOCK_STREAM, 0);
     }
     TCPSocket(int fd);
-    bool connect();
+    bool connect(int retry_count = 0);
     bool bind();
     bool listen(int backlog);
     std::unique_ptr<TCPSocket> accept();
@@ -54,8 +54,23 @@ class TLSSocket : public TCPSocket {
         this->ssl = SSL_new(ctx);
         SSL_set_fd(this->ssl, this->socket_num);
     }
+    ~TLSSocket () {
+        SSL_free(this->ssl);
+    }
+    // move and copy
+    TLSSocket (const TLSSocket& sock) : TCPSocket(sock.socket_num) {
+        this->type = sock.type;
+        this->ctx = sock.ctx;
+        this->ssl = SSL_new(ctx);
+        SSL_set_fd(this->ssl, this->socket_num);
+    }
+    TLSSocket (TLSSocket&& sock) : TCPSocket(sock.socket_num) {
+        this->type = sock.type;
+        this->ctx = sock.ctx;
+        this->ssl = std::move(sock.ssl);
+    }
     std::unique_ptr<TLSSocket> accept();
-    bool connect();
+    bool connect(int retry_count = 0);
     bool close();
     bool send(void* data, uint32_t size);
     std::vector<uint8_t> recv(bool block);

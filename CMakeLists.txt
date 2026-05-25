@@ -1,4 +1,4 @@
-cmake_minimum_required(VERSION 3.10)
+cmake_minimum_required(VERSION 3.11)
 project(ServerClient VERSION 1.0)
 
 # Set C++17 standard
@@ -7,6 +7,14 @@ set(CMAKE_CXX_STANDARD_REQUIRED ON)
 set(CMAKE_CXX_EXTENSIONS OFF)
 
 find_package(OpenSSL REQUIRED)
+
+include(FetchContent)
+FetchContent_Declare(
+    nuklear
+    GIT_REPOSITORY https://github.com/Immediate-Mode-UI/Nuklear.git
+    GIT_TAG        master
+)
+FetchContent_MakeAvailable(nuklear)
 
 # Server executable
 add_executable(server
@@ -21,3 +29,4 @@ add_executable(client
     shared/socket.cpp
 )
 target_link_libraries(client OpenSSL::SSL OpenSSL::Crypto)
+target_include_directories(client PRIVATE ${nuklear_SOURCE_DIR})

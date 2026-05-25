@@ -1,10 +1,24 @@
 #include <iostream>
+#include <openssl/err.h>
 #include "../shared/socket.hpp"
 
+// add basic file handling
+// users??
+// game data
 int main() {
     SSL_CTX* ctx = SSL_CTX_new(TLS_server_method());
-    SSL_CTX_use_certificate_file(ctx, "cert.pem", SSL_FILETYPE_PEM);
-    SSL_CTX_use_PrivateKey_file(ctx, "key.pem", SSL_FILETYPE_PEM);
+    if (!SSL_CTX_use_certificate_file(ctx, "cert.pem", SSL_FILETYPE_PEM)) {
+        std::cerr << "Failed to load cert.pem\n";
+        ERR_print_errors_fp(stderr);
+        SSL_CTX_free(ctx);
+        return 1;
+    }
+    if (!SSL_CTX_use_PrivateKey_file(ctx, "key.pem", SSL_FILETYPE_PEM)) {
+        std::cerr << "Failed to load key.pem\n";
+        ERR_print_errors_fp(stderr);
+        SSL_CTX_free(ctx);
+        return 1;
+    }
 
     TLSSocket server("", 9001, ctx);
     if (!server.bind()) {
