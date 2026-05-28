@@ -1,5 +1,6 @@
 #pragma once
 #include <cstdint>
+#include <iostream>
 #include <memory>
 #include <string>
 #include <sys/socket.h>
@@ -55,7 +56,11 @@ class TLSSocket : public TCPSocket {
         SSL_set_fd(this->ssl, this->socket_num);
     }
     ~TLSSocket () {
-        SSL_free(this->ssl);
+        if (this->ssl) {
+            SSL_shutdown(ssl);
+            SSL_free(this->ssl);
+            this->ssl = nullptr;
+        }
     }
     // move and copy
     TLSSocket (const TLSSocket& sock) : TCPSocket(sock.socket_num) {
@@ -67,7 +72,8 @@ class TLSSocket : public TCPSocket {
     TLSSocket (TLSSocket&& sock) : TCPSocket(sock.socket_num) {
         this->type = sock.type;
         this->ctx = sock.ctx;
-        this->ssl = std::move(sock.ssl);
+        this->ssl = sock.ssl;
+        sock.ssl = nullptr;
     }
     std::unique_ptr<TLSSocket> accept();
     bool connect(int retry_count = 0);

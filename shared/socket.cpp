@@ -1,11 +1,13 @@
 #include "socket.hpp"
 #include <arpa/inet.h>
 #include <cerrno>
+#include <chrono>
 #include <cstring>
 #include <iostream>
 #include <memory>
 #include <netinet/in.h>
 #include <openssl/err.h>
+#include <thread>
 #include <unistd.h>
 
 Socket::Socket(std::string ip, uint32_t port, SOCKET_TYPE type) {
@@ -42,8 +44,12 @@ bool TCPSocket::connect(int retry_count) {
     int result = 1;
     for (int i = 0; i <= retry_count && result != 0; i++) {
         result = ::connect(this->socket_num, (struct sockaddr*)&addr, sizeof(addr));
-        if (result != 0)
+        if (result != 0) {
             std::cerr << "TCP connect failed: " << strerror(errno) << "\n";
+            std::this_thread::sleep_for(std::chrono::milliseconds(100));
+            continue;
+        }
+        break;
     }
     return result == 0;
 }
@@ -74,8 +80,10 @@ TLSSocket::TLSSocket(int fd, SSL_CTX* ctx) : TCPSocket(fd) {
     SSL_set_fd(this->ssl, this->socket_num);
 }
 std::unique_ptr<TLSSocket> TLSSocket::accept() {
-    int client_fd = ::accept(this->socket_num, nullptr, nullptr);
-    if (client_fd == -1) return nullptr;
+    int client_fd = ::accept(this->socket_num, NULL, NULL);
+    if (client_fd == -1) {
+        return nullptr;
+    }
     std::unique_ptr<TLSSocket> client = std::make_unique<TLSSocket>(client_fd, this->ctx);
     int result = SSL_accept(client->ssl);
     if (result != 1) {
@@ -96,8 +104,11 @@ bool TLSSocket::connect(int retry_count) {
     return true;
 }
 bool TLSSocket::close() {
-    SSL_shutdown(ssl);
-    SSL_free(ssl);
+    if (this->ssl) {
+        SSL_shutdown(ssl);
+        SSL_free(ssl);
+        this->ssl = nullptr;
+    }
     return Socket::close();
 }
 bool TLSSocket::send(void* data, uint32_t size) {
