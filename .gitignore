@@ -3,3 +3,4 @@ build
 .cache
 *.pem
 font_loader.log
+imgui.ini

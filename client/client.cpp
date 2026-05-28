@@ -1,11 +1,12 @@
 #include <iostream>
 #include <openssl/err.h>
 #include "../shared/socket.hpp"
+#include "filebrowser.hpp"
 #include "g_engine/util/logging.hpp"
-#include "imgui.h"
 #include "imgui_impl_opengl3.h"
 #include "g_engine/g_engine_2d.hpp"
 #include <signal.h>
+
 
 gore::g_engine_2d eng("ROM-Pack", 1024, 768, PRIMITIVE_COMPONENT | IMAGE_COMPONENT | FONT_COMPONENT | MAINTAIN_ASPECT_RATIO_COMPONENT, gore::LogType::NONE, "rom-pack.log", 1024, 768);
 
@@ -15,11 +16,19 @@ void render() {
     eng.line_r->drawBuffer();
     ImGui_ImplOpenGL3_RenderDrawData(ImGui::GetDrawData());
 }
+// issue is the comps not maintaining width and height
+void windowResize (uint32_t w, uint32_t h) {
+    ImGuiIO& io = ImGui::GetIO();
+    io.DisplaySize = ImVec2((float)w, (float)h);
+    io.DeltaTime = 1.0f / 60.0f;
+}
 
 // https://github.com/ocornut/imgui
 
 int main() {
     eng.setRenderFunction(render);
+    eng.setWindowResize(windowResize);
+    eng.setMaintainViewport(true);
     signal(SIGPIPE, SIG_IGN);
     SSL_CTX* ctx = SSL_CTX_new(TLS_client_method());
     if (!SSL_CTX_load_verify_locations(ctx, "cert.pem", nullptr)) {
@@ -61,14 +70,12 @@ int main() {
 
         ImGui_ImplOpenGL3_NewFrame();
         ImGui::NewFrame();
-
-        ImGui::Begin("ROM-Pack");
-        ImGui::Text("Hello from ImGui!");
-        ImGui::End();
-        ImGui::SetNextWindowPos(ImVec2(300, 300));
+        ImGui::SetNextWindowPos(ImVec2(0, 10));
         ImGui::SetNextWindowSize(ImVec2(400, 400));
         ImGui::Begin("File Manager");
-        ImGui::Text("Click to get file");
+        if (ImGui::Button("Upload File")) {
+            std::cout << "upload clicked\n";
+        }
         ImGui::End();
 
         ImGui::Render();
