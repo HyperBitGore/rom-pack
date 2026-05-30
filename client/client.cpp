@@ -8,7 +8,7 @@
 #include <signal.h>
 
 
-gore::g_engine_2d eng("ROM-Pack", 1024, 768, PRIMITIVE_COMPONENT | IMAGE_COMPONENT | FONT_COMPONENT | MAINTAIN_ASPECT_RATIO_COMPONENT, gore::LogType::NONE, "rom-pack.log", 1024, 768);
+gore::g_engine_2d eng("ROM-Pack", 1024, 768, PRIMITIVE_COMPONENT | IMAGE_COMPONENT | FONT_COMPONENT, gore::LogType::NONE, "rom-pack.log", 1024, 768);
 
 void render() {
     eng.line_r->setColor({1.0f, 0.0f, 0.0f, 1.0f});
@@ -45,9 +45,11 @@ int main() {
         SSL_CTX_free(ctx);
         return 1;
     }
+    // convert this to some login thing
     std::cout << "Connected to server\n";
     const char* msg = "Hello server";
     client.send((void*)msg, sizeof("Hello server"));
+    client.close();
 
     IMGUI_CHECKVERSION();
     ImGui::CreateContext();
@@ -56,6 +58,7 @@ int main() {
     io.DeltaTime = 1.0f / 60.0f;
     ImGui::StyleColorsDark();
     ImGui_ImplOpenGL3_Init("#version 330 core");
+    FileBrowser fb;
 
     while (true) {
         eng.updateInputState();
@@ -72,12 +75,16 @@ int main() {
         ImGui::NewFrame();
         ImGui::SetNextWindowPos(ImVec2(0, 10));
         ImGui::SetNextWindowSize(ImVec2(400, 400));
-        ImGui::Begin("File Manager");
-        if (ImGui::Button("Upload File")) {
-            std::cout << "upload clicked\n";
+        if (fb.getDisplay()) {
+            fb.render();
+        } else {
+            ImGui::Begin("File Manager", nullptr, ImGuiWindowFlags_NoCollapse);
+            if (ImGui::Button("Upload File")) {
+                std::cout << "upload clicked\n";
+                fb.toggleDisplay();
+            }
+            ImGui::End();
         }
-        ImGui::End();
-
         ImGui::Render();
 
         if (!eng.updateWindow()) break;
@@ -86,7 +93,6 @@ int main() {
 
     ImGui_ImplOpenGL3_Shutdown();
     ImGui::DestroyContext();
-    client.close();
     SSL_CTX_free(ctx);
     return 0;
 }

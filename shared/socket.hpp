@@ -69,12 +69,6 @@ class TLSSocket : public TCPSocket {
         this->ssl = SSL_new(ctx);
         SSL_set_fd(this->ssl, this->socket_num);
     }
-    TLSSocket (TLSSocket&& sock) : TCPSocket(sock.socket_num) {
-        this->type = sock.type;
-        this->ctx = sock.ctx;
-        this->ssl = sock.ssl;
-        sock.ssl = nullptr;
-    }
     std::unique_ptr<TLSSocket> accept();
     bool connect(int retry_count = 0);
     bool close();

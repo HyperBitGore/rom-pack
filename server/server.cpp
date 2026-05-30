@@ -9,6 +9,8 @@
 // game data
 // launch scripts/options
 // users??
+// consume zip files and consume them
+//      - decompress and recompress with our superior method
 // igdb api metadata
 // file compression
 // folder compression
