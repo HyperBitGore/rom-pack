@@ -1,9 +1,12 @@
 #include <cstdint>
 #include <iostream>
 #include <memory>
+#include <utility>
 #include <openssl/err.h>
 #include <signal.h>
 #include "../shared/socket.hpp"
+#include "../shared/socket_enums.hpp"
+#include "server_files.hpp"
 
 // add basic file handling
 // game data
@@ -14,6 +17,61 @@
 // igdb api metadata
 // file compression
 // folder compression
+
+FileManager fm;
+
+bool helloMsg (std::vector<uint8_t>& data, std::unique_ptr<TLSSocket>& sock) {
+    if (data.empty() || data[0] != std::to_underlying(SocketConnectType::HELLO)) {
+        return false;
+    }
+    std::string username(data.begin() + 1, data.end());
+    std::cout << "Hello from: " << username << "\n";
+    std::vector<uint8_t> response = { std::to_underlying(SocketConnectType::HELLO) };
+    return sock->send(&response[0], response.size());
+}
+bool uploadMsg (std::vector<uint8_t>& data, std::unique_ptr<TLSSocket>& sock) {
+    // expect: [FILE_UPLOAD_BEGIN (1B), file_size (8B LE), filename bytes]
+    if (data.size() < 10 || data[0] != std::to_underlying(SocketConnectType::FILE_UPLOAD_BEGIN)) {
+        return false;
+    }
+    uint64_t file_size = (uint64_t)data[1]
+                       | ((uint64_t)data[2] << 8)
+                       | ((uint64_t)data[3] << 16)
+                       | ((uint64_t)data[4] << 24)
+                       | ((uint64_t)data[5] << 32)
+                       | ((uint64_t)data[6] << 40)
+                       | ((uint64_t)data[7] << 48)
+                       | ((uint64_t)data[8] << 56);
+    std::string file_name(data.begin() + 9, data.end());
+    uint32_t id = fm.addIncomingFile(file_name, file_size);
+    uint16_t window_size = 1024;
+
+    std::vector<uint8_t> response = { std::to_underlying(SocketConnectType::FILE_UPLOAD_BEGIN) };
+    // id as 4 bytes little-endian
+    response.push_back(id & 0xFF);
+    response.push_back((id >> 8) & 0xFF);
+    response.push_back((id >> 16) & 0xFF);
+    response.push_back((id >> 24) & 0xFF);
+    // window_size as 2 bytes little-endian
+    response.push_back(window_size & 0xFF);
+    response.push_back((window_size >> 8) & 0xFF);
+
+    return sock->send(&response[0], response.size());
+}
+
+bool uploadBlock (std::vector<uint8_t>& data, std::unique_ptr<TLSSocket>& sock) {
+    if (data.size() < 5 || data[0] != std::to_underlying(SocketConnectType::FILE_UPLOAD_BLOCK)) {
+        return false;
+    }
+    uint32_t id = (uint64_t)data[1]
+                       | ((uint64_t)data[2] << 8)
+                       | ((uint64_t)data[3] << 16)
+                       | ((uint64_t)data[4] << 24);
+    std::vector<uint8_t> block(data.begin() + 5, data.end());
+    fm.updateIncomingFile(id, block);    
+    return true;
+}
+
 int main() {
     SSL_CTX* ctx = SSL_CTX_new(TLS_server_method());
     if (!SSL_CTX_use_certificate_file(ctx, "cert.pem", SSL_FILETYPE_PEM)) {
@@ -48,8 +106,25 @@ int main() {
         }
         std::cout << "Client connected\n";
         std::vector<uint8_t> data = client->recv(true);
-        std::string msg(data.begin(), data.end());
-        std::cout << msg << "\n";
+        if (data.size() > 0) {
+            switch (data[0]) {
+                case std::to_underlying(SocketConnectType::HELLO):
+                    if (!helloMsg(data, client)) {
+                        std::cout << "Hello handshake failed\n";
+                    }
+                break;
+                case std::to_underlying(SocketConnectType::FILE_UPLOAD_BEGIN):
+                    if (!uploadMsg(data, client)) {
+                        std::cout << "Upload handshake failed\n";
+                    }
+                break;
+                case std::to_underlying(SocketConnectType::FILE_UPLOAD_BLOCK):
+                    if (!uploadBlock(data, client)) {
+                        std::cout << "Block failed!\n";
+                    }
+                break;
+            }
+        }
         std::cout << "closing client\n";
         client->close();
         std::cout << "client closed\n";

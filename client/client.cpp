@@ -1,14 +1,19 @@
+#include <cstdint>
 #include <iostream>
 #include <openssl/err.h>
 #include "../shared/socket.hpp"
 #include "filebrowser.hpp"
 #include "g_engine/util/logging.hpp"
+#include "imgui.h"
 #include "imgui_impl_opengl3.h"
 #include "g_engine/g_engine_2d.hpp"
+#include "../shared/socket_enums.hpp"
 #include <signal.h>
+#include <utility>
 
 
 gore::g_engine_2d eng("ROM-Pack", 1024, 768, PRIMITIVE_COMPONENT | IMAGE_COMPONENT | FONT_COMPONENT, gore::LogType::NONE, "rom-pack.log", 1024, 768);
+std::string username = "local";
 
 void render() {
     eng.line_r->setColor({1.0f, 0.0f, 0.0f, 1.0f});
@@ -21,6 +26,20 @@ void windowResize (uint32_t w, uint32_t h) {
     ImGuiIO& io = ImGui::GetIO();
     io.DisplaySize = ImVec2((float)w, (float)h);
     io.DeltaTime = 1.0f / 60.0f;
+}
+
+bool helloMsg (TLSSocket* sock) {
+    std::vector<uint8_t> buffer = { std::to_underlying(SocketConnectType::HELLO) };
+    // send user name / login flow here
+    for (auto& i : username) {
+        buffer.push_back(i);
+    }
+    sock->send(&buffer[0], buffer.size() * sizeof(char));
+    buffer = sock->recv(true);
+    if (buffer.size() > 0 && buffer[0] == std::to_underlying(SocketConnectType::HELLO)) {
+        return true;
+    }
+    return false;
 }
 
 // https://github.com/ocornut/imgui
@@ -47,8 +66,12 @@ int main() {
     }
     // convert this to some login thing
     std::cout << "Connected to server\n";
-    const char* msg = "Hello server";
-    client.send((void*)msg, sizeof("Hello server"));
+    if (!helloMsg(&client)) {
+        std::cout << "Error in hello msg to server\n";
+        SSL_CTX_free(ctx);
+        client.close();
+        return 1;
+    }
     client.close();
 
     IMGUI_CHECKVERSION();
@@ -59,6 +82,7 @@ int main() {
     ImGui::StyleColorsDark();
     ImGui_ImplOpenGL3_Init("#version 330 core");
     FileBrowser fb;
+    fb.setConnection(ctx, "127.0.0.1", 9001);
 
     while (true) {
         eng.updateInputState();
@@ -82,6 +106,9 @@ int main() {
             if (ImGui::Button("Upload File")) {
                 std::cout << "upload clicked\n";
                 fb.toggleDisplay();
+            }
+            if (ImGui::Button("Launch Game")) {
+                std::cout << "Launch Game\n";
             }
             ImGui::End();
         }

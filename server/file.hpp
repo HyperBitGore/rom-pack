@@ -19,4 +19,6 @@ class File {
         File (const File& file);
         // get raw bytes of file
         std::vector<uint8_t> getFileContents ();
+        // add bytes
+        void addBytes (std::vector<uint8_t>& bytes);
 };

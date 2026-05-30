@@ -1,4 +1,5 @@
 #include "server_files.hpp"
+#include "file.hpp"
 
 FileManager::FileManager () {
 
@@ -19,4 +20,22 @@ void FileManager::addFileLibrary (std::string file_path) {
     // parse the memory
 
     // add the files linked here into our file manager
+}
+
+uint32_t FileManager::addIncomingFile (std::string file_name, uint64_t file_size) {
+    uint32_t id = (uint32_t)incoming.size();
+    IncomingFile inf;
+    inf.f = File(file_name);
+    inf.id = id;
+    inf.file_size = file_size;
+    incoming.push_back(inf);
+    return id;
+}
+
+void FileManager::updateIncomingFile (uint32_t id, std::vector<uint8_t> block) {
+    for (auto& i : incoming) {
+        if (i.id == id) {
+            i.f.addBytes(block);
+        }
+    }
 }

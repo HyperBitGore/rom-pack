@@ -38,7 +38,11 @@ File::File (std::string file_path) {
     std::vector<std::string> split = splitString(file_path, "/");
     this->file_name = split[split.size() - 1];
     try {
-        this->file_length = std::filesystem::file_size(file_path);
+        if (std::filesystem::exists(file_path)) {
+            this->file_length = std::filesystem::file_size(file_path);
+        } else {
+            this->file_length = 0;
+        }
     } catch (const std::filesystem::filesystem_error& e) {
         std::cerr << "File size error: " << e.what() << "\n";
     }
@@ -62,4 +66,11 @@ std::vector<uint8_t> File::getFileContents () {
     }
     delete[] file_contents;
     return contents;
+}
+
+// add bytes
+void File::addBytes (std::vector<uint8_t>& bytes) {
+    std::fstream f(file_path, std::ios::binary | std::ios::app);
+    f.write((char*)&bytes[0], bytes.size());
+    f.close();
 }

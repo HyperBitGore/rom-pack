@@ -1,8 +1,13 @@
 #pragma once
+#include <cstdint>
 #include <filesystem>
 #include <stdexcept>
+#include <string>
 #include <vector>
+#include <atomic>
 #include "imgui.h"
+#include "../shared/socket.hpp"
+#include "../shared/socket_enums.hpp"
 
 class FileBrowser {
     private:
@@ -19,10 +24,17 @@ class FileBrowser {
         bool display = false;
         RenderMode mode = RenderMode::Select;
         std::string selected_file = "";
+        SSL_CTX* ctx = nullptr;
+        std::string server_ip;
+        uint32_t server_port = 0;
+        uint32_t upload_id = 0;
+        uint16_t upload_window_size = 0;
+        std::atomic<float> upload_progress;
         std::string filetypeToString (FileType ft);
         FileType getType (std::filesystem::path path);
         void renderSelect ();
         void renderUploadProgress();
+        bool startUpload();
     public:
         FileBrowser () {
             current_path = std::filesystem::current_path();
@@ -34,6 +46,11 @@ class FileBrowser {
                 throw std::runtime_error("Path inputted into FileBrowser constructor doesn't exist! " + path);
             }
             updateFileListing();
+        }
+        void setConnection(SSL_CTX* ctx, std::string ip, uint32_t port) {
+            this->ctx = ctx;
+            this->server_ip = ip;
+            this->server_port = port;
         }
         void updateFileListing ();
         void toggleDisplay ();
