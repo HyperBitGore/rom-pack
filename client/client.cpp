@@ -8,6 +8,7 @@
 #include "imgui_impl_opengl3.h"
 #include "g_engine/g_engine_2d.hpp"
 #include "../shared/socket_enums.hpp"
+#include "manager.hpp"
 #include <signal.h>
 #include <utility>
 
@@ -83,7 +84,7 @@ int main() {
     ImGui_ImplOpenGL3_Init("#version 330 core");
     FileBrowser fb;
     fb.setConnection(ctx, "127.0.0.1", 9001);
-
+    Manager mng;
     while (true) {
         eng.updateInputState();
 
@@ -99,7 +100,10 @@ int main() {
         ImGui::NewFrame();
         ImGui::SetNextWindowPos(ImVec2(0, 10));
         ImGui::SetNextWindowSize(ImVec2(400, 400));
-        if (fb.getDisplay()) {
+        if (mng.getDisplay()) {
+            mng.render();
+        }
+        else if (fb.getDisplay()) {
             fb.render();
         } else {
             ImGui::Begin("File Manager", nullptr, ImGuiWindowFlags_NoCollapse);
@@ -109,6 +113,7 @@ int main() {
             }
             if (ImGui::Button("Launch Game")) {
                 std::cout << "Launch Game\n";
+                mng.toggleDisplay();
             }
             ImGui::End();
         }

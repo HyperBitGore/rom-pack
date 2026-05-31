@@ -1,5 +1,6 @@
 #pragma once
 #include "file.hpp"
+#include "../shared/socket_enums.hpp"
 #include <cstdint>
 #include <vector>
 #include <string>
@@ -14,6 +15,8 @@ class FileManager {
             uint64_t file_size;
         };
         std::vector<IncomingFile> incoming;
+        std::vector<Category> library;
+        std::string library_path;
     public:
         FileManager ();
         // copy
@@ -21,7 +24,11 @@ class FileManager {
         // adds a file to manage
         void addFile (std::string file_path);
         // adds a library file (structure which links to other files)
-        void addFileLibrary (std::string file_path);
+        void addFileLibrary ();
+        // update the file library
+        void updateFileLibrary ();
+        // serializes the library so we can send to client
+        std::vector<uint8_t> serialize ();
         // adds an uploading file, returns the id
         uint32_t addIncomingFile (std::string file_name, uint64_t file_size);
         // update incoming file

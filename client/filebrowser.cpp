@@ -115,7 +115,7 @@ void FileBrowser::renderUploadProgress() {
     ImGui::ProgressBar(progress, ImVec2(-1.0f, 0.0f));
     
     
-    if (ImGui::Button("Cancel")) {
+    if (ImGui::Button("Close")) {
         this->mode = RenderMode::Select;
         this->display = false;
     }
@@ -201,7 +201,9 @@ void FileBrowser::render() {
 }
 
 void FileBrowser::toggleDisplay () {
-    display = !display;
+    display = true;
+    this->x = ImGui::GetWindowWidth() / 2;
+    this->y = ImGui::GetWindowHeight() / 2;
     updateFileListing();
 }
 

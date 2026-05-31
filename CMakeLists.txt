@@ -91,5 +91,6 @@ add_executable(client
     client/client.cpp
     shared/socket.cpp
     client/filebrowser.cpp
+    client/manager.cpp
 )
 target_link_libraries(client OpenSSL::SSL OpenSSL::Crypto g_engine_2d_lib imgui_lib)
