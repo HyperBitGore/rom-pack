@@ -25,5 +25,8 @@ class Manager {
         void toggleDisplay () {
             this->display = !this->display;
         }
+        std::vector<Category> retrieveLibrary () {
+            return library;
+        }
         
 };

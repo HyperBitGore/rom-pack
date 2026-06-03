@@ -13,13 +13,10 @@
 #include <utility>
 
 
-gore::g_engine_2d eng("ROM-Pack", 1024, 768, PRIMITIVE_COMPONENT | IMAGE_COMPONENT | FONT_COMPONENT, gore::LogType::NONE, "rom-pack.log", 1024, 768);
+gore::g_engine_2d eng("ROM-Pack", 1024, 768,0, gore::LogType::NONE, "rom-pack.log", 1024, 768);
 std::string username = "local";
 
 void render() {
-    eng.line_r->setColor({1.0f, 0.0f, 0.0f, 1.0f});
-    eng.line_r->addLine({100, 100}, {500, 300});
-    eng.line_r->drawBuffer();
     ImGui_ImplOpenGL3_RenderDrawData(ImGui::GetDrawData());
 }
 // issue is the comps not maintaining width and height
@@ -74,7 +71,8 @@ int main() {
         return 1;
     }
     client.close();
-
+    Manager mng;
+    mng.updateLibrary(ctx, "127.0.0.1", 9001);
     IMGUI_CHECKVERSION();
     ImGui::CreateContext();
     ImGuiIO& io = ImGui::GetIO();
@@ -84,7 +82,6 @@ int main() {
     ImGui_ImplOpenGL3_Init("#version 330 core");
     FileBrowser fb;
     fb.setConnection(ctx, "127.0.0.1", 9001);
-    Manager mng;
     while (true) {
         eng.updateInputState();
 
@@ -95,6 +92,11 @@ int main() {
         io.MouseDown[0] = eng.getMouseLeftDown();
         io.MouseDown[1] = eng.getMouseRightDown();
         io.MouseDown[2] = eng.getMouseMiddleDown();
+        for (size_t i = 0; i < 256; i++) {
+            if (eng.getKeyDown(i)) {
+                io.AddInputCharacter(i);
+            }
+        }
 
         ImGui_ImplOpenGL3_NewFrame();
         ImGui::NewFrame();
@@ -104,6 +106,7 @@ int main() {
             mng.render();
         }
         else if (fb.getDisplay()) {
+            fb.setLibrary(mng.retrieveLibrary());
             fb.render();
         } else {
             ImGui::Begin("File Manager", nullptr, ImGuiWindowFlags_NoCollapse);
@@ -114,6 +117,7 @@ int main() {
             if (ImGui::Button("Launch Game")) {
                 std::cout << "Launch Game\n";
                 mng.toggleDisplay();
+                mng.updateLibrary(ctx, "127.0.0.1", 9001);
             }
             ImGui::End();
         }

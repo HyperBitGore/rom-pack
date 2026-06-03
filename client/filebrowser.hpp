@@ -12,13 +12,14 @@
 class FileBrowser {
     private:
         enum class FileType { Folder, File, Image, Binary, Script };
-        enum class RenderMode { Select, UploadProgress };
+        enum class RenderMode { Select, UploadProgress, Category_Selection };
         struct File {
             std::string file_name;
             FileType type;
         };     
         std::filesystem::path current_path;
         std::vector<File> current_files;
+        std::vector<Category> library;
         float x = 0;
         float y = 0;
         bool display = false;
@@ -30,9 +31,12 @@ class FileBrowser {
         uint32_t upload_id = 0;
         uint16_t upload_window_size = 0;
         std::atomic<float> upload_progress;
+        int selected_cat_idx = -1;
+        int selected_folder_idx = -1;
         std::string filetypeToString (FileType ft);
         FileType getType (std::filesystem::path path);
         void renderSelect ();
+        void renderSelectCategory ();
         void renderUploadProgress();
         bool startUpload();
     public:
@@ -61,6 +65,9 @@ class FileBrowser {
         }
         bool getDisplay () {
             return display;
+        }
+        void setLibrary(std::vector<Category> categories) {
+            this->library = categories;
         }
 
 };

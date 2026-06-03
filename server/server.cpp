@@ -1,6 +1,7 @@
 #include <cstdint>
 #include <iostream>
 #include <memory>
+#include <stdexcept>
 #include <utility>
 #include <openssl/err.h>
 #include <signal.h>
@@ -45,7 +46,13 @@ bool uploadMsg (std::vector<uint8_t>& data, std::unique_ptr<TLSSocket>& sock) {
                        | ((uint64_t)data[7] << 48)
                        | ((uint64_t)data[8] << 56);
     std::string file_name(data.begin() + 9, data.end());
-    uint32_t id = fm.addIncomingFile(file_name, file_size);
+    uint32_t id;
+    try {
+        uint32_t id = fm.addIncomingFile(file_name, file_size);
+    } catch (std::runtime_error e) {
+        std::cerr << e.what() << "\n";
+        return false;
+    }
     uint16_t window_size = 1024;
 
     std::vector<uint8_t> response = { std::to_underlying(SocketConnectType::FILE_UPLOAD_BEGIN) };

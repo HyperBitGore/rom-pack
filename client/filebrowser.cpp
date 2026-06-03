@@ -57,9 +57,9 @@ void FileBrowser::renderSelect () {
     ImGui::SetNextWindowSize(ImVec2(400, 400));
     ImGui::Begin("File Browser",  nullptr, ImGuiWindowFlags_NoCollapse);
     if (ImGui::Button("Upload")) {
-        if (!selected_file.empty() && startUpload()) {
-            this->mode = RenderMode::UploadProgress;
-        }
+        this->mode = RenderMode::Category_Selection;
+        this->selected_cat_idx = -1;
+        this->selected_folder_idx = -1;
     }
     ImGui::BeginTable(this->current_path.string().c_str(), 3);
 
@@ -104,6 +104,42 @@ void FileBrowser::renderSelect () {
     ImGui::EndTable();
     ImGui::End();
 }
+
+void FileBrowser::renderSelectCategory () {
+    ImGui::SetNextWindowPos(ImVec2(x, y));
+    ImGui::SetNextWindowSize(ImVec2(400, 400));
+    ImGui::Begin("Select Category",  nullptr, ImGuiWindowFlags_NoCollapse);
+    if (ImGui::Button("Start Upload")) {
+        if (!selected_file.empty() && startUpload()) {
+            this->mode = RenderMode::UploadProgress;
+        }
+    }
+    if (ImGui::Button("Cancel")) {
+        this->display = false;
+        this->mode = RenderMode::Select;
+        this->selected_cat_idx = -1;
+        this->selected_folder_idx = -1;
+    }
+    // list the categories
+    for (int ci = 0; ci < (int)library.size(); ci++) {
+        bool cat_open = ImGui::TreeNode(library[ci].name.c_str());
+        if (cat_open) {
+            for (int fi = 0; fi < (int)library[ci].folders.size(); fi++) {
+                bool is_selected = (selected_cat_idx == ci && selected_folder_idx == fi);
+                std::string label = library[ci].folders[fi].name + "##" + std::to_string(ci) + "_" + std::to_string(fi);
+                if (ImGui::Selectable(label.c_str(), is_selected)) {
+                    selected_cat_idx = ci;
+                    selected_folder_idx = fi;
+                }
+            }
+            ImGui::TreePop();
+        }
+    }
+    static char buf[128] = ""; 
+    ImGui::InputText("New Category", buf, IM_ARRAYSIZE(buf));
+    ImGui::End();
+}
+
 void FileBrowser::renderUploadProgress() {
     ImGui::SetNextWindowPos(ImVec2(x, y));
     ImGui::SetNextWindowSize(ImVec2(400, 400));
@@ -195,6 +231,9 @@ void FileBrowser::render() {
             break;
             case RenderMode::UploadProgress:
                 renderUploadProgress();
+            break;
+            case RenderMode::Category_Selection:
+                renderSelectCategory();
             break;
         }
     }

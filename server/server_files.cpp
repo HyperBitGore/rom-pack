@@ -1,7 +1,10 @@
 #include "server_files.hpp"
 #include "file.hpp"
+#include "../shared/buffer.hpp"
+#include <filesystem>
 #include <fstream>
 #include <iostream>
+#include <stdexcept>
 
 FileManager::FileManager () {
     this->library_path = "rom-pack.library";
@@ -29,6 +32,7 @@ void FileManager::addFileLibrary () {
     std::ifstream f(library_path);
     if (!f) {
         std::cerr << "No library file located in set path!\n";
+        updateFileLibrary();
         return;
     }
     library.clear();
@@ -84,12 +88,26 @@ void FileManager::updateFileLibrary () {
 }
 
 std::vector<uint8_t> FileManager::serialize () {
-    std::vector<uint8_t> buffer;
-    
-    return buffer;
+    Buffer buf;
+    for (auto& cat : library) {
+        buf.addString(cat.name);
+        buf.addFourByte(cat.folders.size());
+        for (auto& folder : cat.folders) {
+            buf.addString(folder.name);
+            buf.addFourByte(folder.entries.size());
+            for (auto& game : folder.entries) {
+                buf.addString(game.name);
+                buf.addString(game.command);
+            }
+        }
+    }
+    return buf.getData();
 }
 
 uint32_t FileManager::addIncomingFile (std::string file_name, uint64_t file_size) {
+    if (std::filesystem::exists(file_name)) {
+        throw std::runtime_error("Uploading duplicate file, rejecting connection!");
+    }
     uint32_t id = (uint32_t)incoming.size();
     IncomingFile inf;
     inf.f = File(file_name);
