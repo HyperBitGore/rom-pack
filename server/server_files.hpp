@@ -13,6 +13,8 @@ class FileManager {
             File f;
             uint32_t id;
             uint64_t file_size;
+            std::string category;
+            std::string folder;
         };
         std::vector<IncomingFile> incoming;
         std::vector<Category> library;
@@ -30,7 +32,7 @@ class FileManager {
         // serializes the library so we can send to client
         std::vector<uint8_t> serialize ();
         // adds an uploading file, returns the id
-        uint32_t addIncomingFile (std::string file_name, std::string folder, uint64_t file_size);
+        uint32_t addIncomingFile (std::string file_name, std::string category, std::string folder, uint64_t file_size);
         // update incoming file
         void updateIncomingFile (uint32_t id, std::vector<uint8_t> block);
 };

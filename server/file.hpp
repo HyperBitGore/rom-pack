@@ -20,4 +20,12 @@ class File {
         std::vector<uint8_t> getFileContents ();
         // add bytes
         void addBytes (std::vector<uint8_t>& bytes);
+        // get file path
+        std::string getFilePath () {
+            return file_path;
+        }
+        // get file name
+        std::string getFileName () {
+            return file_name;
+        }
 };

@@ -49,7 +49,7 @@ bool uploadMsg (std::vector<uint8_t>& data, std::unique_ptr<TLSSocket>& sock) {
     std::string folder = b.readString();
     uint32_t id;
     try {
-        id = fm.addIncomingFile(file_name, folder, file_size);
+        id = fm.addIncomingFile(file_name, "unknown", folder, file_size);
     } catch (std::runtime_error e) {
         std::cerr << e.what() << "\n";
         return false;

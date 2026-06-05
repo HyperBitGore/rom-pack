@@ -5,4 +5,4 @@ enum class SocketConnectType { HELLO, FILE_UPLOAD_BEGIN, FOLDER_UPLOAD_BEGIN, FI
 
 struct LaunchEntry  { std::string name; std::string command; };
 struct GameFolder   { std::string name; std::vector<LaunchEntry> entries; };
-struct Category     { std::string name; std::vector<GameFolder> folders; };
+struct Category     { std::string name; std::vector<GameFolder> folders; GameFolder unknown; };

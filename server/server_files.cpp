@@ -25,6 +25,14 @@ void FileManager::addFile (std::string file_path, std::string category, std::str
             break;
         }
     }
+    if (cat_index == -1) {
+        for (int i = 0; i < library.size(); i++ ) {
+            if (library[i].name == "unknown") {
+                cat_index = i;
+                break;
+            }
+        }
+    }
     for (int i = 0; i < library[cat_index].folders.size(); i++) {
         if (library[cat_index].folders[i].name == folder) {
             folder_index = i;
@@ -35,7 +43,7 @@ void FileManager::addFile (std::string file_path, std::string category, std::str
         if (folder_index > -1) {
             library[cat_index].folders[folder_index].entries.push_back({ file_path, "" });
         } else {
-            
+            library[cat_index].unknown.entries.push_back({file_path, ""});
         }
     }
     File f(file_path);
@@ -125,7 +133,7 @@ std::vector<uint8_t> FileManager::serialize () {
     return buf.getData();
 }
 
-uint32_t FileManager::addIncomingFile (std::string file_name, std::string folder, uint64_t file_size) {
+uint32_t FileManager::addIncomingFile (std::string file_name, std::string category, std::string folder, uint64_t file_size) {
     if (std::filesystem::exists(file_name)) {
         throw std::runtime_error("Uploading duplicate file, rejecting connection!");
     }
@@ -134,7 +142,9 @@ uint32_t FileManager::addIncomingFile (std::string file_name, std::string folder
     inf.f = File(file_name);
     inf.id = id;
     inf.file_size = file_size;
-    // TODO add folder support
+    inf.category = category;
+    inf.folder = folder;
+    // TODO make the saving of these files into category/folder/file_name
     incoming.push_back(inf);
     return id;
 }
@@ -144,7 +154,7 @@ void FileManager::updateIncomingFile (uint32_t id, std::vector<uint8_t> block) {
         if (incoming[i].id == id) {
             incoming[i].f.addBytes(block);
             if (block.size() < 1019) {
-                files.push_back(incoming[i].f);
+                addFile(incoming[i].f.getFilePath(), incoming[i].category, incoming[i].folder);
                 incoming.erase(incoming.begin() + i);
             }
             return;
