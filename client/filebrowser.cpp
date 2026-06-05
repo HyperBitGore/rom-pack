@@ -1,5 +1,6 @@
 #include "filebrowser.hpp"
 #include "imgui.h"
+#include "../shared/buffer.hpp"
 #include <algorithm>
 #include <cstdint>
 #include <filesystem>
@@ -56,7 +57,7 @@ void FileBrowser::renderSelect () {
     ImGui::SetNextWindowPos(ImVec2(x, y));
     ImGui::SetNextWindowSize(ImVec2(400, 400));
     ImGui::Begin("File Browser",  nullptr, ImGuiWindowFlags_NoCollapse);
-    if (ImGui::Button("Upload")) {
+    if (ImGui::Button("Continue")) {
         this->mode = RenderMode::Category_Selection;
         this->selected_cat_idx = -1;
         this->selected_folder_idx = -1;
@@ -66,11 +67,13 @@ void FileBrowser::renderSelect () {
     if (current_path != current_path.root_path()) {
         ImGui::TableNextRow();
         ImGui::TableNextColumn();
-        if (ImGui::Selectable("..", false, ImGuiSelectableFlags_SpanAllColumns)) {
-            auto prev = current_path;
-            current_path = current_path.parent_path();
-            selected_file = "";
-            try { updateFileListing(); } catch (...) { current_path = prev; }
+        if (ImGui::Selectable("..", false, ImGuiSelectableFlags_SpanAllColumns | ImGuiSelectableFlags_AllowDoubleClick)) {
+            if (ImGui::IsMouseDoubleClicked(0)) {
+                auto prev = current_path;
+                current_path = current_path.parent_path();
+                selected_file = "";
+                try { updateFileListing(); } catch (...) { current_path = prev; }
+            }
         }
         ImGui::TableNextColumn();
         ImGui::Text("Folder");
@@ -84,11 +87,14 @@ void FileBrowser::renderSelect () {
         ImGuiSelectableFlags flags = ImGuiSelectableFlags_SpanAllColumns | ImGuiSelectableFlags_AllowDoubleClick;
         if (ImGui::Selectable(label.c_str(), is_selected, flags)) {
             if (current_files[i].type == FileType::Folder) {
-                auto prev = current_path;
-                current_path = current_path / current_files[i].file_name;
-                selected_file = "";
-                try { updateFileListing(); } catch (...) { current_path = prev; }
-                break;
+                if (ImGui::IsMouseDoubleClicked(0)) {
+                    auto prev = current_path;
+                    current_path = current_path / current_files[i].file_name;
+                    selected_file = "";
+                    try { updateFileListing(); } catch (...) { current_path = prev; }
+                    break;
+                }
+                selected_file = current_files[i].file_name;
             } else {
                 selected_file = current_files[i].file_name;
             }
@@ -185,24 +191,15 @@ void uploadFile (std::string file_path, std::string ip, uint32_t port, SSL_CTX* 
     f.close();
 }
 
-bool FileBrowser::startUpload() {
+bool FileBrowser::beginFileUpload (std::filesystem::path file) {
     if (!ctx || selected_file.empty()) return false;
     TLSSocket sock(server_ip, server_port, ctx);
     if (!sock.connect(10)) return false;
-    
-    std::vector<uint8_t> buffer = { std::to_underlying(SocketConnectType::FILE_UPLOAD_BEGIN) };
+    Buffer buffer;
+    buffer.addByte(std::to_underlying(SocketConnectType::FILE_UPLOAD_BEGIN));
     uint64_t size = std::filesystem::file_size(current_path / selected_file);
-    buffer.push_back(size & 0xFF);
-    buffer.push_back((size >> 8) & 0xFF);
-    buffer.push_back((size >> 16) & 0xFF);
-    buffer.push_back((size >> 24) & 0xFF);
-    buffer.push_back((size >> 32) & 0xFF);
-    buffer.push_back((size >> 40) & 0xFF);
-    buffer.push_back((size >> 48) & 0xFF);
-    buffer.push_back((size >> 56) & 0xFF);
-    for (uint8_t c : selected_file) {
-        buffer.push_back(c);
-    }
+    buffer.addEightByte(size);
+    buffer.addString(selected_file);
 
     if (!sock.send(&buffer[0], buffer.size())) return false;
 
@@ -211,15 +208,44 @@ bool FileBrowser::startUpload() {
     if (response.size() < 7 || response[0] != std::to_underlying(SocketConnectType::FILE_UPLOAD_BEGIN)) {
         return false;
     }
+    sock.close();
     upload_id = (uint32_t)response[1]
-              | ((uint32_t)response[2] << 8)
-              | ((uint32_t)response[3] << 16)
-              | ((uint32_t)response[4] << 24);
+            | ((uint32_t)response[2] << 8)
+            | ((uint32_t)response[3] << 16)
+            | ((uint32_t)response[4] << 24);
     upload_window_size = (uint16_t)response[5] | ((uint16_t)response[6] << 8);
     upload_progress.store(0.0f);
     std::filesystem::path p = current_path / selected_file;
     std::thread uploadThread(uploadFile, p.string(), server_ip, server_port, ctx, upload_id, size, &upload_progress, upload_window_size);
     uploadThread.detach();
+    sock.close();
+    return true;
+}
+
+bool FileBrowser::beginFolderUpload (std::filesystem::path folder) {
+    if (!ctx || selected_file.empty()) return false;
+    TLSSocket sock(server_ip, server_port, ctx);
+    if (!sock.connect(10)) return false;
+    // send the folder upload begin message instead 
+    Buffer buffer;
+    buffer.addByte(std::to_underlying(SocketConnectType::FOLDER_UPLOAD_BEGIN));
+    uint64_t size = std::filesystem::file_size(current_path / selected_file);
+    buffer.addEightByte(size);
+
+    sock.close();
+    return true;
+}
+
+bool FileBrowser::startUpload() {
+    if (!ctx || selected_file.empty()) return false;
+    TLSSocket sock(server_ip, server_port, ctx);
+    if (!sock.connect(10)) return false;
+    // determine if folder
+    if (std::filesystem::is_directory(current_path / selected_file)) {
+        beginFolderUpload(current_path / selected_file);
+    } else {
+        beginFileUpload(current_path / selected_file);
+    }
     return true;
 }
 

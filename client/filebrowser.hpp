@@ -39,6 +39,8 @@ class FileBrowser {
         void renderSelectCategory ();
         void renderUploadProgress();
         bool startUpload();
+        bool beginFileUpload (std::filesystem::path file);
+        bool beginFolderUpload (std::filesystem::path folder);
     public:
         FileBrowser () {
             current_path = std::filesystem::current_path();

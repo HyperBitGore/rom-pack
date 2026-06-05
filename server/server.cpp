@@ -8,11 +8,14 @@
 #include "../shared/socket.hpp"
 #include "../shared/socket_enums.hpp"
 #include "server_files.hpp"
-
+// move socket reply functions to seperate thread
+//  - thread pool???
 // game data
 //  - add library syncing between server and client
 //      - client library just the shape of library, download files when want to
+//  - upload folder
 // launch scripts/options
+//  - map where a emulator/launcher is on for local client
 // users??
 //      - utilize some identifier in every packet??
 // consume zip files and consume them
@@ -67,6 +70,12 @@ bool uploadMsg (std::vector<uint8_t>& data, std::unique_ptr<TLSSocket>& sock) {
 
     return sock->send(&response[0], response.size());
 }
+
+bool uploadFolderMsg (std::vector<uint8_t>& data, std::unique_ptr<TLSSocket>& sock) {
+
+    return true;
+}
+
 
 bool uploadBlock (std::vector<uint8_t>& data, std::unique_ptr<TLSSocket>& sock) {
     if (data.size() < 5 || data[0] != std::to_underlying(SocketConnectType::FILE_UPLOAD_BLOCK)) {
@@ -140,6 +149,10 @@ int main() {
                         std::cout << "Upload handshake failed\n";
                     }
                 break;
+                case std::to_underlying(SocketConnectType::FOLDER_UPLOAD_BEGIN):
+                    if (!uploadFolderMsg(data, client)) {
+                        std::cout << "Upload folder handshake failed\n";
+                    }
                 case std::to_underlying(SocketConnectType::FILE_UPLOAD_BLOCK):
                     if (!uploadBlock(data, client)) {
                         std::cout << "Block failed!\n";

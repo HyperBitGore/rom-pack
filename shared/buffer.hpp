@@ -20,6 +20,17 @@ class Buffer {
         data = buffer;
     }
     // write
+    void addEightByte (uint64_t data) {
+        this->data.push_back(data & 0xFF);
+        this->data.push_back((data >> 8) & 0xFF);
+        this->data.push_back((data >> 16) & 0xFF);
+        this->data.push_back((data >> 24) & 0xFF);
+        this->data.push_back((data >> 32) & 0xFF);
+        this->data.push_back((data >> 40) & 0xFF);
+        this->data.push_back((data >> 48) & 0xFF);
+        this->data.push_back((data >> 56) & 0xFF);
+    }
+
     void addFourByte (uint32_t data) {
         this->data.push_back(data & 0xFF);
         this->data.push_back((data >> 8) & 0xFF);
@@ -71,5 +82,8 @@ class Buffer {
             return data[i];
         }
         throw std::runtime_error("Accessing data out of bounds in buffer!");
+    }
+    size_t size () {
+        return data.size();
     }
 };
