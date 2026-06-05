@@ -16,7 +16,28 @@ FileManager::FileManager (const FileManager& fm) {
     this->library_path = fm.library_path;
 }
 // adds a file to manage
-void FileManager::addFile (std::string file_path) {
+void FileManager::addFile (std::string file_path, std::string category, std::string folder) {
+    int cat_index = -1;
+    int folder_index = -1;
+    for (int i = 0; i < library.size(); i++) {
+        if (library[i].name == category) {
+            cat_index = i;
+            break;
+        }
+    }
+    for (int i = 0; i < library[cat_index].folders.size(); i++) {
+        if (library[cat_index].folders[i].name == folder) {
+            folder_index = i;
+            break;
+        }
+    }
+    if (cat_index > -1) {
+        if (folder_index > -1) {
+            library[cat_index].folders[folder_index].entries.push_back({ file_path, "" });
+        } else {
+            
+        }
+    }
     File f(file_path);
     files.push_back(f);
 }
@@ -104,7 +125,7 @@ std::vector<uint8_t> FileManager::serialize () {
     return buf.getData();
 }
 
-uint32_t FileManager::addIncomingFile (std::string file_name, uint64_t file_size) {
+uint32_t FileManager::addIncomingFile (std::string file_name, std::string folder, uint64_t file_size) {
     if (std::filesystem::exists(file_name)) {
         throw std::runtime_error("Uploading duplicate file, rejecting connection!");
     }
@@ -113,6 +134,7 @@ uint32_t FileManager::addIncomingFile (std::string file_name, uint64_t file_size
     inf.f = File(file_name);
     inf.id = id;
     inf.file_size = file_size;
+    // TODO add folder support
     incoming.push_back(inf);
     return id;
 }

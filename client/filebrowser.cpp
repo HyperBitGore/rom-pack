@@ -1,6 +1,7 @@
 #include "filebrowser.hpp"
 #include "imgui.h"
 #include "../shared/buffer.hpp"
+#include "../shared/filesystem_helpers.hpp"
 #include <algorithm>
 #include <cstdint>
 #include <filesystem>
@@ -151,7 +152,6 @@ void FileBrowser::renderUploadProgress() {
     ImGui::SetNextWindowSize(ImVec2(400, 400));
     ImGui::Begin("File Upload",  nullptr, ImGuiWindowFlags_NoCollapse);
     ImGui::Text("Uploading: %s", selected_file.c_str());
-    ImGui::Text("Transfer ID: %u, Window: %u bytes", upload_id, (uint32_t)upload_window_size);
     float progress = upload_progress.load();
     ImGui::Text("%.1f%%", progress * 100.0f);
     ImGui::ProgressBar(progress, ImVec2(-1.0f, 0.0f));
@@ -191,15 +191,17 @@ void uploadFile (std::string file_path, std::string ip, uint32_t port, SSL_CTX* 
     f.close();
 }
 
-bool FileBrowser::beginFileUpload (std::filesystem::path file) {
-    if (!ctx || selected_file.empty()) return false;
+bool FileBrowser::beginFileUpload (std::filesystem::path file, std::string folder) {
+    if (!ctx || file.empty()) return false;
     TLSSocket sock(server_ip, server_port, ctx);
     if (!sock.connect(10)) return false;
     Buffer buffer;
     buffer.addByte(std::to_underlying(SocketConnectType::FILE_UPLOAD_BEGIN));
-    uint64_t size = std::filesystem::file_size(current_path / selected_file);
+    uint64_t size = std::filesystem::file_size(file);
     buffer.addEightByte(size);
-    buffer.addString(selected_file);
+    buffer.addString(file.filename().string());
+    // folder
+    buffer.addString(folder);
 
     if (!sock.send(&buffer[0], buffer.size())) return false;
 
@@ -209,17 +211,27 @@ bool FileBrowser::beginFileUpload (std::filesystem::path file) {
         return false;
     }
     sock.close();
-    upload_id = (uint32_t)response[1]
+    uint32_t upload_id = (uint32_t)response[1]
             | ((uint32_t)response[2] << 8)
             | ((uint32_t)response[3] << 16)
             | ((uint32_t)response[4] << 24);
-    upload_window_size = (uint16_t)response[5] | ((uint16_t)response[6] << 8);
+    uint32_t upload_window_size = (uint16_t)response[5] | ((uint16_t)response[6] << 8);
     upload_progress.store(0.0f);
-    std::filesystem::path p = current_path / selected_file;
-    std::thread uploadThread(uploadFile, p.string(), server_ip, server_port, ctx, upload_id, size, &upload_progress, upload_window_size);
+    std::thread uploadThread(uploadFile, file.string(), server_ip, server_port, ctx, upload_id, size, &upload_progress, upload_window_size);
     uploadThread.detach();
     sock.close();
     return true;
+}
+
+void FileBrowser::uploadFolderThread (std::string file_path, std::string folder, std::string ip, uint32_t port, SSL_CTX* ctx, uint32_t upload_id, uint64_t file_size, std::atomic<float>* progress, uint16_t window_size) {
+    // could just spawn threads for every file in folder??
+    for (const auto& entry : std::filesystem::directory_iterator(file_path)) {
+        if (!std::filesystem::is_directory(entry)) {
+            beginFileUpload(entry, folder);
+        } else {
+            beginFolderUpload(entry);
+        }
+    }
 }
 
 bool FileBrowser::beginFolderUpload (std::filesystem::path folder) {
@@ -229,22 +241,35 @@ bool FileBrowser::beginFolderUpload (std::filesystem::path folder) {
     // send the folder upload begin message instead 
     Buffer buffer;
     buffer.addByte(std::to_underlying(SocketConnectType::FOLDER_UPLOAD_BEGIN));
-    uint64_t size = std::filesystem::file_size(current_path / selected_file);
+    uint64_t size = filehelper::getDirectorySize(folder);
     buffer.addEightByte(size);
-
+    auto count = std::distance(std::filesystem::directory_iterator(folder), std::filesystem::directory_iterator{});
+    uint64_t f_count = count;
+    buffer.addEightByte(f_count);
+    buffer.addString(folder);
+    if (!sock.send(&buffer[0], buffer.size())) return false;
+    // get the folder id
+    Buffer response = sock.recv(true);
+    // expect: [FILE_UPLOAD_BEGIN, id(4B LE), window_size(2B LE)]
+    if (response.size() < 7 || response[0] != std::to_underlying(SocketConnectType::FILE_UPLOAD_BEGIN)) {
+        return false;
+    }
+    response.offset = 1;
+    uint32_t upload_id = response.readFourByte();
+    uint16_t upload_window_size = response.readTwoByte();
     sock.close();
+    upload_progress.store(0.0f);
+    std::thread uploadThread(&FileBrowser::uploadFolderThread, this, folder, selected_file, server_ip, server_port, ctx, upload_id, size, &upload_progress, upload_window_size);
+    uploadThread.detach();
     return true;
 }
 
 bool FileBrowser::startUpload() {
-    if (!ctx || selected_file.empty()) return false;
-    TLSSocket sock(server_ip, server_port, ctx);
-    if (!sock.connect(10)) return false;
     // determine if folder
     if (std::filesystem::is_directory(current_path / selected_file)) {
         beginFolderUpload(current_path / selected_file);
     } else {
-        beginFileUpload(current_path / selected_file);
+        beginFileUpload(current_path / selected_file, "");
     }
     return true;
 }

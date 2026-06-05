@@ -92,5 +92,12 @@ add_executable(client
     shared/socket.cpp
     client/filebrowser.cpp
     client/manager.cpp
+    shared/filesystem_helpers.cpp
 )
 target_link_libraries(client OpenSSL::SSL OpenSSL::Crypto g_engine_2d_lib imgui_lib)
+
+# Buffer tests
+add_executable(buffer_tests tests/buffer_tests.cpp)
+target_include_directories(buffer_tests PRIVATE shared)
+enable_testing()
+add_test(NAME buffer_tests COMMAND buffer_tests)

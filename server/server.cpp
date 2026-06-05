@@ -1,4 +1,5 @@
 #include <cstdint>
+#include <filesystem>
 #include <iostream>
 #include <memory>
 #include <stdexcept>
@@ -7,6 +8,7 @@
 #include <signal.h>
 #include "../shared/socket.hpp"
 #include "../shared/socket_enums.hpp"
+#include "../shared/buffer.hpp"
 #include "server_files.hpp"
 // move socket reply functions to seperate thread
 //  - thread pool???
@@ -40,40 +42,55 @@ bool uploadMsg (std::vector<uint8_t>& data, std::unique_ptr<TLSSocket>& sock) {
     if (data.size() < 10 || data[0] != std::to_underlying(SocketConnectType::FILE_UPLOAD_BEGIN)) {
         return false;
     }
-    uint64_t file_size = (uint64_t)data[1]
-                       | ((uint64_t)data[2] << 8)
-                       | ((uint64_t)data[3] << 16)
-                       | ((uint64_t)data[4] << 24)
-                       | ((uint64_t)data[5] << 32)
-                       | ((uint64_t)data[6] << 40)
-                       | ((uint64_t)data[7] << 48)
-                       | ((uint64_t)data[8] << 56);
-    std::string file_name(data.begin() + 9, data.end());
+    Buffer b(data);
+    b.offset = 1;
+    uint64_t file_size = b.readEightByte();
+    std::string file_name = b.readString();
+    std::string folder = b.readString();
     uint32_t id;
     try {
-        uint32_t id = fm.addIncomingFile(file_name, file_size);
+        id = fm.addIncomingFile(file_name, folder, file_size);
     } catch (std::runtime_error e) {
         std::cerr << e.what() << "\n";
         return false;
     }
     uint16_t window_size = 1024;
-
-    std::vector<uint8_t> response = { std::to_underlying(SocketConnectType::FILE_UPLOAD_BEGIN) };
+    Buffer response;
+    response.addByte(std::to_underlying(SocketConnectType::FILE_UPLOAD_BEGIN));
     // id as 4 bytes little-endian
-    response.push_back(id & 0xFF);
-    response.push_back((id >> 8) & 0xFF);
-    response.push_back((id >> 16) & 0xFF);
-    response.push_back((id >> 24) & 0xFF);
+    response.addFourByte(id);
     // window_size as 2 bytes little-endian
-    response.push_back(window_size & 0xFF);
-    response.push_back((window_size >> 8) & 0xFF);
+    response.addTwoByte(window_size);
 
     return sock->send(&response[0], response.size());
 }
 
 bool uploadFolderMsg (std::vector<uint8_t>& data, std::unique_ptr<TLSSocket>& sock) {
+    // expect: [FOLDER_UPLOAD_BEGIN (1B), folder_size (8B LE), f_count (8B LE), folder_name (string)]
+    if (data.size() < 18 || data[0] != std::to_underlying(SocketConnectType::FOLDER_UPLOAD_BEGIN)) {
+        return false;
+    }
+    Buffer b(data);
+    b.offset = 1;
+    [[maybe_unused]] uint64_t folder_size = b.readEightByte();
+    [[maybe_unused]] uint64_t f_count     = b.readEightByte();
+    std::string folder_name = std::filesystem::path(b.readString()).filename().string();
 
-    return true;
+    std::error_code ec;
+    std::filesystem::create_directories(folder_name, ec);
+    if (ec) {
+        std::cerr << "Failed to create folder '" << folder_name << "': " << ec.message() << "\n";
+        return false;
+    }
+
+    uint32_t id = 0;
+    uint16_t window_size = 1024;
+    Buffer response;
+    response.addByte(std::to_underlying(SocketConnectType::FILE_UPLOAD_BEGIN));
+    response.addFourByte(id);
+    response.addTwoByte(window_size);
+
+    return sock->send(&response[0], response.size());
 }
 
 
@@ -153,6 +170,7 @@ int main() {
                     if (!uploadFolderMsg(data, client)) {
                         std::cout << "Upload folder handshake failed\n";
                     }
+                break;
                 case std::to_underlying(SocketConnectType::FILE_UPLOAD_BLOCK):
                     if (!uploadBlock(data, client)) {
                         std::cout << "Block failed!\n";

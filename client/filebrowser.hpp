@@ -28,8 +28,6 @@ class FileBrowser {
         SSL_CTX* ctx = nullptr;
         std::string server_ip;
         uint32_t server_port = 0;
-        uint32_t upload_id = 0;
-        uint16_t upload_window_size = 0;
         std::atomic<float> upload_progress;
         int selected_cat_idx = -1;
         int selected_folder_idx = -1;
@@ -39,8 +37,9 @@ class FileBrowser {
         void renderSelectCategory ();
         void renderUploadProgress();
         bool startUpload();
-        bool beginFileUpload (std::filesystem::path file);
+        bool beginFileUpload (std::filesystem::path file, std::string folder);
         bool beginFolderUpload (std::filesystem::path folder);
+        void uploadFolderThread (std::string file_path, std::string folder, std::string ip, uint32_t port, SSL_CTX* ctx, uint32_t upload_id, uint64_t file_size, std::atomic<float>* progress, uint16_t window_size);
     public:
         FileBrowser () {
             current_path = std::filesystem::current_path();

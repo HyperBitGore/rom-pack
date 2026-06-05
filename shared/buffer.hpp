@@ -54,6 +54,19 @@ class Buffer {
         return data;
     }
     // read
+    uint64_t readEightByte () {
+        uint64_t out = (uint64_t)data[offset]
+                    | ((uint64_t)data[offset + 1] << 8)
+                    | ((uint64_t)data[offset + 2] << 16)
+                    | ((uint64_t)data[offset + 3] << 24)
+                    | ((uint64_t)data[offset + 4] << 32)
+                    | ((uint64_t)data[offset + 5] << 40)
+                    | ((uint64_t)data[offset + 6] << 48)
+                    | ((uint64_t)data[offset + 7] << 56);
+        offset += 8;
+        return out;
+    }
+
     uint32_t readFourByte () {
         uint32_t out = data[offset++];
         out |= data[offset++] << 8;

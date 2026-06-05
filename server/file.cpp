@@ -70,7 +70,13 @@ std::vector<uint8_t> File::getFileContents () {
 
 // add bytes
 void File::addBytes (std::vector<uint8_t>& bytes) {
-    std::fstream f(file_path, std::ios::binary | std::ios::app);
-    f.write((char*)&bytes[0], bytes.size());
-    f.close();
+    if (std::filesystem::exists(file_path)) {
+        std::fstream f(file_path, std::ios::binary | std::ios::app);
+        f.write((char*)&bytes[0], bytes.size());
+        f.close();
+    } else {
+        std::ofstream f(file_path, std::ios::binary);
+        f.write((char*)&bytes[0], bytes.size());
+        f.close();
+    }
 }

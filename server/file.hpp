@@ -10,7 +10,6 @@ class File {
         std::string file_path;
         std::string file_name;
         unsigned long file_length;
-        std::vector<File*> related_files;
         static std::vector<std::string> splitString (std::string string, std::string split);
     public:
         File ();
