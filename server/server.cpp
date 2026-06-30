@@ -47,9 +47,10 @@ bool uploadMsg (std::vector<uint8_t>& data, std::unique_ptr<TLSSocket>& sock) {
     uint64_t file_size = b.readEightByte();
     std::string file_name = b.readString();
     std::string folder = b.readString();
+    std::string category = b.readString();
     uint32_t id;
     try {
-        id = fm.addIncomingFile(file_name, "unknown", folder, file_size);
+        id = fm.addIncomingFile(file_name, category, folder, file_size);
     } catch (std::runtime_error e) {
         std::cerr << e.what() << "\n";
         return false;
@@ -119,6 +120,16 @@ bool sendCategories (std::vector<uint8_t>& data, std::unique_ptr<TLSSocket>& soc
     sock->send(&buffer[0], buffer.size());
     return true;
 }
+bool addCategory (std::vector<uint8_t>& data, std::unique_ptr<TLSSocket>& sock) {
+    if (data.size() < 5 || data[0] != std::to_underlying(SocketConnectType::ADD_CATEGORY)) {
+        return false;
+    }
+    Buffer b(data);
+    b.readByte();
+    std::string category = b.readString();
+    fm.addCategory(category); 
+    return true;
+}
 
 int main() {
     SSL_CTX* ctx = SSL_CTX_new(TLS_server_method());
@@ -179,6 +190,11 @@ int main() {
                 case std::to_underlying(SocketConnectType::CATEGORIES):
                     if (!sendCategories(data, client)) {
                         std::cout << "Categories send failed!\n";
+                    }
+                break;
+                case std::to_underlying(SocketConnectType::ADD_CATEGORY):
+                    if (!addCategory(data, client)) {
+                        std::cout << "Failed to add category!\n";
                     }
                 break;
             }

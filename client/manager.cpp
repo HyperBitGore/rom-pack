@@ -12,14 +12,18 @@ Manager::Manager () {
 Manager::Manager (const Manager& m) {
     this->display = m.display;
     this->library = m.library;
+    this->mode = m.mode;
 }
-// renders the ImGui
-void Manager::render() {
+
+void Manager::renderMain() {
     ImGui::SetNextWindowPos(ImVec2(0, 0));
     ImGui::SetNextWindowSize(ImVec2(ImGui::GetWindowWidth(), ImGui::GetWindowHeight()));
     ImGui::Begin("Library");
     if (ImGui::Button("Back")) {
         this->display = false;
+    }
+    if (ImGui::Button("Add Category")) {
+        this->mode = Mode::Add;
     }
     if (lib_mut.try_lock()) {
         if (library.empty()) {
@@ -48,6 +52,58 @@ void Manager::render() {
         ImGui::Text("Updating...");
     }
     ImGui::End();
+}
+
+void Manager::addCategory (std::string category) {
+    if (!ctx) return;
+    TLSSocket sock(ip, port, ctx);
+    if (!sock.connect(10)) return;
+    Buffer b;
+    b.addByte(std::to_underlying(SocketConnectType::ADD_CATEGORY));
+    b.addString(category);
+    sock.send(&b.getData()[0], b.getData().size());
+}
+
+void Manager::renderAdd () {
+    ImGui::Begin("Add Category");
+    static char buf[128] = ""; 
+    ImGui::InputText("Category Name", buf, IM_ARRAYSIZE(buf));
+    if (ImGui::Button("Back")) {
+        this->mode = Mode::Main;
+    }
+    if (ImGui::Button("Add")) {
+        this->mode = Mode::Main;
+        std::thread updateThread(&Manager::addCategory, this, buf);
+        updateThread.detach();
+    }
+    ImGui::End();
+}
+void Manager::renderFolder () {
+    ImGui::Begin("Game Folder");
+
+    ImGui::End();
+}
+void Manager::renderLaunchEntry () {
+    ImGui::Begin("Game Launch");
+
+    ImGui::End();
+}
+// renders the ImGui
+void Manager::render() {
+    switch (mode) {
+    case Mode::Main:
+        renderMain();
+        break;
+    case Mode::Add:
+        renderAdd();
+        break;
+    case Mode::GameFolder:
+        renderFolder();
+        break;
+    case Mode::LaunchEntry:
+        renderLaunchEntry();
+      break;
+    }
 }
 
 void Manager::getLibrary (SSL_CTX* ctx, std::string ip, uint32_t port) {
@@ -88,6 +144,9 @@ void Manager::getLibrary (SSL_CTX* ctx, std::string ip, uint32_t port) {
 
 // updates the library, spawns a thread to update
 void Manager::updateLibrary (SSL_CTX* ctx, std::string ip, uint32_t port) {
+    this->ctx = ctx;
+    this->ip = ip;
+    this->port = port;
     std::thread updateThread(&Manager::getLibrary, this, ctx, ip, port);
     updateThread.detach();
 }

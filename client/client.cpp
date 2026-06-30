@@ -82,9 +82,10 @@ int main() {
     ImGui_ImplOpenGL3_Init("#version 330 core");
     FileBrowser fb;
     fb.setConnection(ctx, "127.0.0.1", 9001);
+    double r = 0;
     while (true) {
         eng.updateInputState();
-
+        r += eng.getDelta();
         float dt = (float)eng.getDelta();
         io.DeltaTime = dt > 0.0f ? dt : 1.0f / 60.0f;
         gore::vec2 mouse = eng.getMousePos();
@@ -92,10 +93,15 @@ int main() {
         io.MouseDown[0] = eng.getMouseLeftDown();
         io.MouseDown[1] = eng.getMouseRightDown();
         io.MouseDown[2] = eng.getMouseMiddleDown();
-        for (size_t i = 0; i < 256; i++) {
-            if (eng.getKeyDown(i)) {
-                io.AddInputCharacter(i);
+        if (r > 0.03) {
+            for (size_t i = 0; i < 256; i++) {
+                if (eng.getKeyDown(i)) {
+                    io.AddInputCharacter(i);
+                }
             }
+            io.AddKeyEvent(ImGuiKey_Backspace, eng.getKeyDown(g_Backspace));
+            io.AddKeyEvent(ImGuiKey_LeftShift, eng.getKeyDown(g_LShift));
+            r = 0.0;
         }
 
         ImGui_ImplOpenGL3_NewFrame();

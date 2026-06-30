@@ -2,6 +2,7 @@
 #include "file.hpp"
 #include "../shared/socket_enums.hpp"
 #include <cstdint>
+#include <filesystem>
 #include <vector>
 #include <string>
 
@@ -15,6 +16,14 @@ class FileManager {
             uint64_t file_size;
             std::string category;
             std::string folder;
+            IncomingFile (std::string name, std::string folder, std::string category, uint32_t id, uint64_t file_size) {
+                this->category = category;
+                this->folder = folder;
+                std::filesystem::path p(std::filesystem::path(category) / folder / name);
+                f = File(p.string());
+                this->id = id;
+                this->file_size = file_size;
+            }
         };
         std::vector<IncomingFile> incoming;
         std::vector<Category> library;
@@ -35,4 +44,6 @@ class FileManager {
         uint32_t addIncomingFile (std::string file_name, std::string category, std::string folder, uint64_t file_size);
         // update incoming file
         void updateIncomingFile (uint32_t id, std::vector<uint8_t> block);
+        // add a new category
+        void addCategory (std::string category);
 };

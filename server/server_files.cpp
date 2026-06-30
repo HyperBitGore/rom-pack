@@ -19,6 +19,7 @@ FileManager::FileManager (const FileManager& fm) {
 void FileManager::addFile (std::string file_path, std::string category, std::string folder) {
     int cat_index = -1;
     int folder_index = -1;
+    std::string name = std::filesystem::path(file_path).filename();
     for (int i = 0; i < library.size(); i++) {
         if (library[i].name == category) {
             cat_index = i;
@@ -41,13 +42,14 @@ void FileManager::addFile (std::string file_path, std::string category, std::str
     }
     if (cat_index > -1) {
         if (folder_index > -1) {
-            library[cat_index].folders[folder_index].entries.push_back({ file_path, "" });
+            library[cat_index].folders[folder_index].entries.push_back({ name, "" });
         } else {
-            library[cat_index].unknown.entries.push_back({file_path, ""});
+            library[cat_index].unknown.entries.push_back({name, ""});
         }
     }
     File f(file_path);
     files.push_back(f);
+    updateFileLibrary();
 }
 static std::string trim(const std::string& s) {
     size_t start = s.find_first_not_of(" \t\r\n");
@@ -100,16 +102,24 @@ void FileManager::updateFileLibrary () {
         std::cerr << "Failed to open library file for writing!\n";
         return;
     }
+    auto writeFolder = [&](const std::string& indent, const GameFolder& folder) {
+        f << indent << folder.name << " {\n";
+        for (auto& entry : folder.entries) {
+            f << indent << "    " << entry.name << " {\n";
+            f << indent << "        " << entry.command << "\n";
+            f << indent << "    }\n";
+        }
+        f << indent << "}\n";
+    };
     for (auto& cat : library) {
         f << cat.name << " {\n";
         for (auto& folder : cat.folders) {
-            f << "    " << folder.name << " {\n";
-            for (auto& entry : folder.entries) {
-                f << "        " << entry.name << " {\n";
-                f << "            " << entry.command << "\n";
-                f << "        }\n";
-            }
-            f << "    }\n";
+            writeFolder("    ", folder);
+        }
+        if (!cat.unknown.entries.empty()) {
+            GameFolder unknown_out = cat.unknown;
+            unknown_out.name = "__unknown__";
+            writeFolder("    ", unknown_out);
         }
         f << "}\n";
     }
@@ -138,12 +148,7 @@ uint32_t FileManager::addIncomingFile (std::string file_name, std::string catego
         throw std::runtime_error("Uploading duplicate file, rejecting connection!");
     }
     uint32_t id = (uint32_t)incoming.size();
-    IncomingFile inf;
-    inf.f = File(file_name);
-    inf.id = id;
-    inf.file_size = file_size;
-    inf.category = category;
-    inf.folder = folder;
+    IncomingFile inf(file_name, folder, category, id, file_size);
     // TODO make the saving of these files into category/folder/file_name
     incoming.push_back(inf);
     return id;
@@ -160,4 +165,9 @@ void FileManager::updateIncomingFile (uint32_t id, std::vector<uint8_t> block) {
             return;
         }
     }
+}
+
+void FileManager::addCategory (std::string category) {
+    library.push_back({ category });
+    updateFileLibrary();
 }

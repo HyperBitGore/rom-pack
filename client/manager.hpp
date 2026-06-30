@@ -9,8 +9,20 @@ class Manager {
         std::mutex lib_mut;
         std::vector<Category> library;
         bool display = false;
+        SSL_CTX* ctx; 
+        std::string ip;
+        uint32_t port;
         // thread function that updates library
         void getLibrary (SSL_CTX* ctx, std::string ip, uint32_t port);
+        enum class Mode { Main, Add, GameFolder, LaunchEntry };
+        Mode mode = Mode::Main;
+        // render mode
+        void renderMain ();
+        // add category thread function
+        void addCategory (std::string category);
+        void renderAdd ();
+        void renderFolder ();
+        void renderLaunchEntry ();
     public:
         Manager ();
         // copy

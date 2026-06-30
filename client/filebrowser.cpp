@@ -129,7 +129,15 @@ void FileBrowser::renderSelectCategory () {
     }
     // list the categories
     for (int ci = 0; ci < (int)library.size(); ci++) {
-        bool cat_open = ImGui::TreeNode(library[ci].name.c_str());
+        ImGuiTreeNodeFlags node_flags = ImGuiTreeNodeFlags_OpenOnArrow | ImGuiTreeNodeFlags_OpenOnDoubleClick;
+        if (selected_cat_idx == ci && selected_folder_idx == -1) {
+            node_flags |= ImGuiTreeNodeFlags_Selected;
+        }
+        bool cat_open = ImGui::TreeNodeEx((void*)(intptr_t)ci, node_flags, "%s", library[ci].name.c_str());
+        if (ImGui::IsItemClicked() && !ImGui::IsItemToggledOpen()) {
+            selected_cat_idx = ci;
+            selected_folder_idx = -1;
+        }
         if (cat_open) {
             for (int fi = 0; fi < (int)library[ci].folders.size(); fi++) {
                 bool is_selected = (selected_cat_idx == ci && selected_folder_idx == fi);
@@ -142,8 +150,6 @@ void FileBrowser::renderSelectCategory () {
             ImGui::TreePop();
         }
     }
-    static char buf[128] = ""; 
-    ImGui::InputText("New Category", buf, IM_ARRAYSIZE(buf));
     ImGui::End();
 }
 
@@ -201,8 +207,9 @@ bool FileBrowser::beginFileUpload (std::filesystem::path file, std::string folde
     buffer.addEightByte(size);
     buffer.addString(file.filename().string());
     // folder
-    buffer.addString(folder);
-
+    buffer.addString((folder.empty() && this->selected_folder_idx >= 0) ? this->library[this->selected_cat_idx].folders[this->selected_folder_idx].name : folder);
+    // category
+    buffer.addString(this->library[this->selected_cat_idx].name);
     if (!sock.send(&buffer[0], buffer.size())) return false;
 
     std::vector<uint8_t> response = sock.recv(true);
