@@ -10,6 +10,11 @@
 #include "../shared/socket_enums.hpp"
 #include "../shared/buffer.hpp"
 #include "server_files.hpp"
+
+//TODO
+//  - fix not processing games/folders in library
+//          - probably switch library to JSON use https://github.com/nlohmann/json
+
 // move socket reply functions to seperate thread
 //  - thread pool???
 // game data
@@ -20,7 +25,7 @@
 //  - map where a emulator/launcher is on for local client
 // users??
 //      - utilize some identifier in every packet??
-// consume zip files and consume them
+// take zip files and consume them
 //      - decompress and recompress with our superior method
 // igdb api metadata
 // file compression

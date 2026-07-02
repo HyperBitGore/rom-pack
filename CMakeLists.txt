@@ -83,6 +83,7 @@ add_executable(server
     server/server_files.cpp
     server/server_files.hpp
     shared/socket.cpp
+    shared/library_functions.cpp
 )
 target_link_libraries(server OpenSSL::SSL OpenSSL::Crypto)
 
@@ -93,6 +94,7 @@ add_executable(client
     client/filebrowser.cpp
     client/manager.cpp
     shared/filesystem_helpers.cpp
+    shared/library_functions.cpp
 )
 target_link_libraries(client OpenSSL::SSL OpenSSL::Crypto g_engine_2d_lib imgui_lib)
 

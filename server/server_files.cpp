@@ -81,7 +81,15 @@ void FileManager::addFileLibrary () {
         if (t == "}") {
             depth--;
             if (depth == 2)      { current_folder.entries.push_back(current_entry); current_entry = {}; }
-            else if (depth == 1) { current_cat.folders.push_back(current_folder);   current_folder = {}; }
+            else if (depth == 1) {
+                if (current_folder.name == "__unknown__") {
+                    current_folder.name = "";
+                    current_cat.unknown = current_folder;
+                } else {
+                    current_cat.folders.push_back(current_folder);
+                }
+                current_folder = {};
+            }
             else if (depth == 0) { library.push_back(current_cat);                  current_cat = {}; }
         } else if (t.back() == '{') {
             std::string name = trim(t.substr(0, t.size() - 1));
@@ -127,29 +135,23 @@ void FileManager::updateFileLibrary () {
 }
 
 std::vector<uint8_t> FileManager::serialize () {
-    Buffer buf;
-    for (auto& cat : library) {
-        buf.addString(cat.name);
-        buf.addFourByte(cat.folders.size());
-        for (auto& folder : cat.folders) {
-            buf.addString(folder.name);
-            buf.addFourByte(folder.entries.size());
-            for (auto& game : folder.entries) {
-                buf.addString(game.name);
-                buf.addString(game.command);
-            }
-        }
-    }
+    Buffer buf = LibraryFunctions::serializeLibrary(library);
     return buf.getData();
 }
 
 uint32_t FileManager::addIncomingFile (std::string file_name, std::string category, std::string folder, uint64_t file_size) {
-    if (std::filesystem::exists(file_name)) {
+    std::filesystem::path dest_dir = std::filesystem::path(category) / folder;
+    std::filesystem::path dest_file = dest_dir / file_name;
+    if (std::filesystem::exists(dest_file)) {
         throw std::runtime_error("Uploading duplicate file, rejecting connection!");
+    }
+    std::error_code ec;
+    std::filesystem::create_directories(dest_dir, ec);
+    if (ec) {
+        throw std::runtime_error("Failed to create directory: " + ec.message());
     }
     uint32_t id = (uint32_t)incoming.size();
     IncomingFile inf(file_name, folder, category, id, file_size);
-    // TODO make the saving of these files into category/folder/file_name
     incoming.push_back(inf);
     return id;
 }

@@ -116,28 +116,10 @@ void Manager::getLibrary (SSL_CTX* ctx, std::string ip, uint32_t port) {
     sock.send(&b.getData()[0], b.getData().size());
     // get the file
     b = sock.recv(true);
-    this->lib_mut.lock();
     // skip the CATEGORIES type byte
     b.offset = 1;
-    std::vector<Category> newLibrary;
-    while (b.offset < b.getData().size()) {
-        Category cat;
-        cat.name = b.readString();
-        uint32_t num_folders = b.readFourByte();
-        for (uint32_t i = 0; i < num_folders; i++) {
-            GameFolder folder;
-            folder.name = b.readString();
-            uint32_t num_entries = b.readFourByte();
-            for (uint32_t j = 0; j < num_entries; j++) {
-                LaunchEntry entry;
-                entry.name = b.readString();
-                entry.command = b.readString();
-                folder.entries.push_back(entry);
-            }
-            cat.folders.push_back(folder);
-        }
-        newLibrary.push_back(cat);
-    }
+    auto newLibrary = LibraryFunctions::deserializeLibrary(b);
+    this->lib_mut.lock();
     this->library = newLibrary;
     this->lib_mut.unlock();
 }
