@@ -8,6 +8,13 @@ import (
 	"time"
 )
 
+// TODO
+//	- db class
+//	- login
+//	- game uploads
+//	- compression
+
+
 type errorResponse struct {
 	Error string `json:"error"`
 }

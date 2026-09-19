@@ -10,9 +10,26 @@
 #include <curl/curl.h>
 #include <iostream>
 
+// TODO
+//  - Main page gui
+//      - display games in account in like a table?
+//  - Game page gui
+//      - game launch / edit
+//  - Add game gui
+//      - process to add game
+//      - select game folder/files
+//      - select category
+//  - Login gui
+//      - username
+//      - password
+
+
 int main(int, char**) {
     CURL* curl = curl_easy_init();
-
+    if (!curl) {
+        std::cout << "Error starting curl!" << std::endl;
+        return -1;
+    }
     request::ProcessResponse process_response = [](
         const char* data,
         size_t size,
@@ -32,6 +49,10 @@ int main(int, char**) {
         process_response
     );
     std::cout << "Request result: " << r << '\n';
+    if (r != 1) {
+        std::cout << "Server error!" << std::endl;
+        return -1;
+    }
     if (curl != nullptr) {
         curl_easy_cleanup(curl);
     }
