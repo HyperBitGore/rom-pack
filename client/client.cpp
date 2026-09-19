@@ -1,140 +1,124 @@
-#include <cstdint>
-#include <iostream>
-#include <openssl/err.h>
-#include "../shared/socket.hpp"
-#include "filebrowser.hpp"
-#include "g_engine/util/logging.hpp"
+#include <cstdio>
+
+#include <SDL.h>
+#include <SDL_opengl.h>
+
 #include "imgui.h"
-#include "imgui_impl_opengl3.h"
-#include "g_engine/g_engine_2d.hpp"
-#include "../shared/socket_enums.hpp"
-#include "manager.hpp"
-#include <signal.h>
-#include <utility>
+#include "backends/imgui_impl_opengl3.h"
+#include "backends/imgui_impl_sdl2.h"
+#include "request.hpp"
+#include <curl/curl.h>
+#include <iostream>
 
+int main(int, char**) {
+    CURL* curl = curl_easy_init();
 
-gore::g_engine_2d eng("ROM-Pack", 1024, 768,0, gore::LogType::NONE, "rom-pack.log", 1024, 768);
-std::string username = "local";
+    request::ProcessResponse process_response = [](
+        const char* data,
+        size_t size,
+        size_t count,
+        const std::string& url
+    ) -> size_t {
+        const size_t bytes = size * count;
+        std::cout << "Response from " << url << ": "
+                  << std::string(data, bytes) << '\n';
+        return bytes;
+    };
 
-void render() {
-    ImGui_ImplOpenGL3_RenderDrawData(ImGui::GetDrawData());
-}
-// issue is the comps not maintaining width and height
-void windowResize (uint32_t w, uint32_t h) {
-    ImGuiIO& io = ImGui::GetIO();
-    io.DisplaySize = ImVec2((float)w, (float)h);
-    io.DeltaTime = 1.0f / 60.0f;
-}
-
-bool helloMsg (TLSSocket* sock) {
-    std::vector<uint8_t> buffer = { std::to_underlying(SocketConnectType::HELLO) };
-    // send user name / login flow here
-    for (auto& i : username) {
-        buffer.push_back(i);
+    const int r = request::sendRequest(
+        "http://127.0.0.1:8080/alive",
+        curl,
+        {},
+        process_response
+    );
+    std::cout << "Request result: " << r << '\n';
+    if (curl != nullptr) {
+        curl_easy_cleanup(curl);
     }
-    sock->send(&buffer[0], buffer.size() * sizeof(char));
-    buffer = sock->recv(true);
-    if (buffer.size() > 0 && buffer[0] == std::to_underlying(SocketConnectType::HELLO)) {
-        return true;
-    }
-    return false;
-}
 
-// https://github.com/ocornut/imgui
-
-int main() {
-    eng.setRenderFunction(render);
-    eng.setWindowResize(windowResize);
-    eng.setMaintainViewport(true);
-    signal(SIGPIPE, SIG_IGN);
-    SSL_CTX* ctx = SSL_CTX_new(TLS_client_method());
-    if (!SSL_CTX_load_verify_locations(ctx, "cert.pem", nullptr)) {
-        std::cerr << "Failed to load cert.pem\n";
-        ERR_print_errors_fp(stderr);
-        SSL_CTX_free(ctx);
+    if (SDL_Init(SDL_INIT_VIDEO | SDL_INIT_TIMER | SDL_INIT_GAMECONTROLLER) != 0) {
+        std::fprintf(stderr, "SDL_Init failed: %s\n", SDL_GetError());
         return 1;
     }
-    SSL_CTX_set_verify(ctx, SSL_VERIFY_PEER, nullptr);
 
-    TLSSocket client("127.0.0.1", 9001, ctx);
-    if (!client.connect(10)) {
-        std::cout << "Error connecting to server\n";
-        SSL_CTX_free(ctx);
+    SDL_GL_SetAttribute(SDL_GL_CONTEXT_FLAGS, 0);
+    SDL_GL_SetAttribute(SDL_GL_CONTEXT_PROFILE_MASK, SDL_GL_CONTEXT_PROFILE_CORE);
+    SDL_GL_SetAttribute(SDL_GL_CONTEXT_MAJOR_VERSION, 3);
+    SDL_GL_SetAttribute(SDL_GL_CONTEXT_MINOR_VERSION, 3);
+    SDL_GL_SetAttribute(SDL_GL_DOUBLEBUFFER, 1);
+    SDL_GL_SetAttribute(SDL_GL_DEPTH_SIZE, 24);
+    SDL_GL_SetAttribute(SDL_GL_STENCIL_SIZE, 8);
+
+    SDL_Window* window = SDL_CreateWindow(
+        "ROM-Pack",
+        SDL_WINDOWPOS_CENTERED,
+        SDL_WINDOWPOS_CENTERED,
+        1280,
+        720,
+        SDL_WINDOW_OPENGL | SDL_WINDOW_RESIZABLE | SDL_WINDOW_ALLOW_HIGHDPI
+    );
+    if (window == nullptr) {
+        std::fprintf(stderr, "SDL_CreateWindow failed: %s\n", SDL_GetError());
+        SDL_Quit();
         return 1;
     }
-    // convert this to some login thing
-    std::cout << "Connected to server\n";
-    if (!helloMsg(&client)) {
-        std::cout << "Error in hello msg to server\n";
-        SSL_CTX_free(ctx);
-        client.close();
+
+    SDL_GLContext gl_context = SDL_GL_CreateContext(window);
+    if (gl_context == nullptr) {
+        std::fprintf(stderr, "SDL_GL_CreateContext failed: %s\n", SDL_GetError());
+        SDL_DestroyWindow(window);
+        SDL_Quit();
         return 1;
     }
-    client.close();
-    Manager mng;
-    mng.updateLibrary(ctx, "127.0.0.1", 9001);
+
+    SDL_GL_MakeCurrent(window, gl_context);
+    SDL_GL_SetSwapInterval(1);
+
     IMGUI_CHECKVERSION();
     ImGui::CreateContext();
-    ImGuiIO& io = ImGui::GetIO();
-    io.DisplaySize = ImVec2(1024.0f, 768.0f);
-    io.DeltaTime = 1.0f / 60.0f;
     ImGui::StyleColorsDark();
-    ImGui_ImplOpenGL3_Init("#version 330 core");
-    FileBrowser fb;
-    fb.setConnection(ctx, "127.0.0.1", 9001);
-    double r = 0;
-    while (true) {
-        eng.updateInputState();
-        r += eng.getDelta();
-        float dt = (float)eng.getDelta();
-        io.DeltaTime = dt > 0.0f ? dt : 1.0f / 60.0f;
-        gore::vec2 mouse = eng.getMousePos();
-        io.MousePos = ImVec2(mouse.x, mouse.y);
-        io.MouseDown[0] = eng.getMouseLeftDown();
-        io.MouseDown[1] = eng.getMouseRightDown();
-        io.MouseDown[2] = eng.getMouseMiddleDown();
-        if (r > 0.03) {
-            for (size_t i = 0; i < 256; i++) {
-                if (eng.getKeyDown(i)) {
-                    io.AddInputCharacter(i);
-                }
+
+    ImGui_ImplSDL2_InitForOpenGL(window, gl_context);
+    ImGui_ImplOpenGL3_Init("#version 330");
+
+    bool running = true;
+    while (running) {
+        SDL_Event event;
+        while (SDL_PollEvent(&event) != 0) {
+            ImGui_ImplSDL2_ProcessEvent(&event);
+            if (event.type == SDL_QUIT) {
+                running = false;
             }
-            io.AddKeyEvent(ImGuiKey_Backspace, eng.getKeyDown(g_Backspace));
-            io.AddKeyEvent(ImGuiKey_LeftShift, eng.getKeyDown(g_LShift));
-            r = 0.0;
+            if (event.type == SDL_WINDOWEVENT &&
+                event.window.event == SDL_WINDOWEVENT_CLOSE) {
+                running = false;
+            }
         }
 
         ImGui_ImplOpenGL3_NewFrame();
+        ImGui_ImplSDL2_NewFrame();
         ImGui::NewFrame();
-        ImGui::SetNextWindowPos(ImVec2(0, 10));
-        ImGui::SetNextWindowSize(ImVec2(400, 400));
-        if (mng.getDisplay()) {
-            mng.render();
-        }
-        else if (fb.getDisplay()) {
-            fb.setLibrary(mng.retrieveLibrary());
-            fb.render();
-        } else {
-            ImGui::Begin("File Manager", nullptr, ImGuiWindowFlags_NoCollapse);
-            if (ImGui::Button("Upload File")) {
-                std::cout << "upload clicked\n";
-                fb.toggleDisplay();
-            }
-            if (ImGui::Button("Launch Game")) {
-                std::cout << "Launch Game\n";
-                mng.toggleDisplay();
-                mng.updateLibrary(ctx, "127.0.0.1", 9001);
-            }
-            ImGui::End();
-        }
-        ImGui::Render();
 
-        if (!eng.updateWindow()) break;
-        if (eng.getKeyDown(g_Escape)) break;
+        ImGui::Begin("ROM-Pack");
+        ImGui::Text("SDL2 and Dear ImGui are running.");
+        ImGui::End();
+
+        ImGui::Render();
+        int display_width = 0;
+        int display_height = 0;
+        SDL_GL_GetDrawableSize(window, &display_width, &display_height);
+        glViewport(0, 0, display_width, display_height);
+        glClearColor(0.1f, 0.1f, 0.1f, 1.0f);
+        glClear(GL_COLOR_BUFFER_BIT);
+        ImGui_ImplOpenGL3_RenderDrawData(ImGui::GetDrawData());
+        SDL_GL_SwapWindow(window);
     }
 
     ImGui_ImplOpenGL3_Shutdown();
+    ImGui_ImplSDL2_Shutdown();
     ImGui::DestroyContext();
-    SSL_CTX_free(ctx);
+    SDL_GL_DeleteContext(gl_context);
+    SDL_DestroyWindow(window);
+    SDL_Quit();
     return 0;
 }
