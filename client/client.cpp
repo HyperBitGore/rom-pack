@@ -10,6 +10,9 @@
 #include <curl/curl.h>
 #include <iostream>
 
+// Bridge for gui elements?, elements themselves are decorated hierachy, Bridge is just a blob of them
+// Pages just use virtual classes and a unique_ptr in main, factory function that populates it??
+
 // TODO
 //  - Main page gui
 //      - display games in account in like a table?

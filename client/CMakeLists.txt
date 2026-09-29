@@ -73,7 +73,8 @@ target_link_libraries(imgui PUBLIC
 
 add_executable(client ${CMAKE_CURRENT_SOURCE_DIR}/client.cpp
     request.hpp
-    request.cpp)
+    request.cpp
+)
 target_link_libraries(client PRIVATE
     imgui
     CURL::libcurl
