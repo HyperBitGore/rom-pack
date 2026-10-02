@@ -74,6 +74,14 @@ target_link_libraries(imgui PUBLIC
 add_executable(client ${CMAKE_CURRENT_SOURCE_DIR}/client.cpp
     request.hpp
     request.cpp
+    pages.hpp
+    pages.cpp
+    elements/item.hpp
+    elements/elements.hpp
+    elements/elements.cpp
+    elements/collision.hpp
+    elements/button.hpp
+    elements/button.cpp
 )
 target_link_libraries(client PRIVATE
     imgui
