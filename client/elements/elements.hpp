@@ -8,6 +8,5 @@ class elements {
         std::vector<std::unique_ptr<item>> items;
     public:
         void render ();
-        void onclick (float x, float y);
         void addItem (std::unique_ptr<item> item);
 };

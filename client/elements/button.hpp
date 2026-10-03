@@ -47,7 +47,9 @@ bool button<clickfunction, keydownfunction>::onclick (float x, float y) {
 
 template<typename clickfunction, typename keydownfunction>
 void button<clickfunction, keydownfunction>::render () {
-    ImGui::Button(this->text.c_str(), { this->w, this->h });
+    if (ImGui::Button(this->text.c_str(), { this->w, this->h })) {
+        on_click(this->x, this->y);
+    }
 }
 
 template<typename clickfunction, typename keydownfunction>

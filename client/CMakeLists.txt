@@ -76,6 +76,8 @@ add_executable(client ${CMAKE_CURRENT_SOURCE_DIR}/client.cpp
     request.cpp
     pages.hpp
     pages.cpp
+    current_page.hpp
+    current_page.cpp
     elements/item.hpp
     elements/elements.hpp
     elements/elements.cpp

@@ -3,11 +3,10 @@
 #include <SDL.h>
 #include <SDL_opengl.h>
 
-#include "elements/elements.hpp"
 #include "imgui.h"
 #include "backends/imgui_impl_opengl3.h"
 #include "backends/imgui_impl_sdl2.h"
-#include "request.hpp"
+#include "current_page.hpp"
 #include <curl/curl.h>
 #include <iostream>
 #include "pages.hpp"
@@ -37,7 +36,7 @@ int main(int, char**) {
         std::cout << "Error starting curl!" << std::endl;
         return -1;
     }
-    request::ProcessResponse process_response = [](
+    /*request::ProcessResponse process_response = [](
         const char* data,
         size_t size,
         size_t count,
@@ -59,10 +58,7 @@ int main(int, char**) {
     if (r != 1) {
         std::cout << "Server error!" << std::endl;
         return -1;
-    }
-    if (curl != nullptr) {
-        curl_easy_cleanup(curl);
-    }
+    }*/
 
     if (SDL_Init(SDL_INIT_VIDEO | SDL_INIT_TIMER | SDL_INIT_GAMECONTROLLER) != 0) {
         std::fprintf(stderr, "SDL_Init failed: %s\n", SDL_GetError());
@@ -108,7 +104,10 @@ int main(int, char**) {
 
     ImGui_ImplSDL2_InitForOpenGL(window, gl_context);
     ImGui_ImplOpenGL3_Init("#version 330");
-    std::unique_ptr<elements> current_page = pages::constructLocalSelectionPage();
+    {
+        current_page& current_page = current_page::instance();
+        current_page.set_page(pages::constructLocalSelectionPage());
+    }
     bool running = true;
     while (running) {
         SDL_Event event;
@@ -126,8 +125,8 @@ int main(int, char**) {
         ImGui_ImplOpenGL3_NewFrame();
         ImGui_ImplSDL2_NewFrame();
         ImGui::NewFrame();
-
-        current_page->render();
+        current_page& current_page = current_page::instance();
+        current_page.render();
         ImGui::Render();
         int display_width = 0;
         int display_height = 0;

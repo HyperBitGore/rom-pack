@@ -1,10 +1,66 @@
 #include "pages.hpp"
+#include "current_page.hpp"
 #include "elements/button.hpp"
+#include "elements/text_input.hpp"
+#include "request.hpp"
+#include <functional>
+#include <memory>
+
+namespace {
+struct connection_state {
+    std::string address{"http://127.0.0.1:8080"};
+    std::string status{"Not connected"};
+};
+
+class status_text : public item {
+    private:
+    std::string* text;
+
+    public:
+    explicit status_text (std::string* text) : text{text} {}
+
+    bool onclick (float, float) override {
+        return false;
+    }
+
+    void render () override {
+        ImGui::TextUnformatted(text->c_str());
+    }
+
+    bool onkeydown (int) override {
+        return false;
+    }
+};
+}
 
 std::unique_ptr<elements> pages::constructLocalSelectionPage () {
     using click_handler = bool (*)(float, float);
     using keydown_handler = bool (*)(int);
+    const keydown_handler no_keydown = [](int) {
+        return false;
+    };
+    const click_handler local_click = [](float, float) {
+        current_page::instance().set_page(pages::constructMainPage());
+        return true;
+    };
+    const click_handler server_click = [](float, float) {
+         current_page::instance().set_page(pages::constructServerConnectPage());
+        return true;
+    };
 
+    auto page = std::make_unique<elements>();
+    page->addItem(std::make_unique<button<click_handler, keydown_handler>>(
+        "local", 0.0f, 0.0f, 100.0f, 30.0f, local_click, no_keydown
+    ));
+    page->addItem(std::make_unique<button<click_handler, keydown_handler>>(
+        "connect", 0.0f, 0.0f, 100.0f, 30.0f, server_click, no_keydown
+    ));
+    return page;
+}
+
+std::unique_ptr<elements> pages::constructMainPage () {
+    using click_handler = bool (*)(float, float);
+    using keydown_handler = bool (*)(int);
     const click_handler no_click = [](float, float) {
         return false;
     };
@@ -14,10 +70,72 @@ std::unique_ptr<elements> pages::constructLocalSelectionPage () {
 
     auto page = std::make_unique<elements>();
     page->addItem(std::make_unique<button<click_handler, keydown_handler>>(
-        "local", 0.0f, 0.0f, 100.0f, 30.0f, no_click, no_keydown
+        "File", 0.0f, 0.0f, 100.0f, 30.0f, no_click, no_keydown
     ));
     page->addItem(std::make_unique<button<click_handler, keydown_handler>>(
-        "connect", 0.0f, 0.0f, 100.0f, 30.0f, no_click, no_keydown
+        "Settings", 0.0f, 0.0f, 100.0f, 30.0f, no_click, no_keydown
     ));
+    page->addItem(std::make_unique<button<click_handler, keydown_handler>>(
+        "Quit", 0.0f, 0.0f, 100.0f, 30.0f, no_click, no_keydown
+    ));
+    return page;
+}
+std::unique_ptr<elements> pages::constructServerConnectPage () {
+    using click_handler = std::function<bool(float, float)>;
+    using keydown_handler = bool (*)(int);
+    const click_handler no_click = [](float, float) {
+        return false;
+    };
+    const click_handler back_click = [](float, float) {
+        current_page::instance().set_page(pages::constructLocalSelectionPage());
+        return true;
+    };
+    const keydown_handler no_keydown = [](int) {
+        return false;
+    };
+    auto state = std::make_shared<connection_state>();
+    const click_handler connect_click = [state](float, float) {
+        state->status = "Connecting...";
+        CURL* curl = curl_easy_init();
+        if (curl == nullptr) {
+            state->status = "Connection failed: unable to initialize curl";
+            return true;
+        }
+
+        request::ProcessResponse response = [](
+            const char*,
+            size_t size,
+            size_t count,
+            const std::string&
+        ) {
+            return size * count;
+        };
+        const int result = request::sendRequest(
+            state->address + "/alive", curl, {}, response
+        );
+        long status_code = 0;
+        curl_easy_getinfo(curl, CURLINFO_RESPONSE_CODE, &status_code);
+        curl_easy_cleanup(curl);
+
+        if (result == 1 && status_code >= 200 && status_code < 300) {
+            state->status = "Connected";
+            current_page::instance().set_page(pages::constructMainPage());
+        } else {
+            state->status = "Connection failed";
+        }
+        return true;
+    };
+    auto page = std::make_unique<elements>();
+    page->addItem(std::make_unique<text_input<click_handler, keydown_handler>>(
+        state->address, 0.0f, 0.0f, 250.0f, 30.0f, no_click, no_keydown,
+        &state->address
+    ));
+    page->addItem(std::make_unique<button<click_handler, keydown_handler>>(
+        "Connect", 0.0f, 0.0f, 100.0f, 30.0f, connect_click, no_keydown
+    ));
+    page->addItem(std::make_unique<button<click_handler, keydown_handler>>(
+        "Back", 0.0f, 0.0f, 100.0f, 30.0f, back_click, no_keydown
+    ));
+    page->addItem(std::make_unique<status_text>(&state->status));
     return page;
 }

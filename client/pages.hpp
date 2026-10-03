@@ -9,4 +9,5 @@ class pages {
     static std::unique_ptr<elements> constructGameDetailsPage ();
     static std::unique_ptr<elements> constructAddGamePage ();
     static std::unique_ptr<elements> constructLocalSelectionPage ();
+    static std::unique_ptr<elements> constructServerConnectPage ();
 };
