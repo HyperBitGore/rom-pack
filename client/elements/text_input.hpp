@@ -51,7 +51,12 @@ class text_input : public item {
 
     void render () override {
         ImGui::SetNextItemWidth(this->w);
-        if (ImGui::InputText("##text_input", input.data(), input.size())) {
+        ImGui::PushID(this);
+        const bool changed = ImGui::InputText(
+            "##text_input", input.data(), input.size()
+        );
+        ImGui::PopID();
+        if (changed) {
             text = input.data();
             if (bound_text != nullptr) {
                 *bound_text = text;

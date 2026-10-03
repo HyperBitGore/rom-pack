@@ -13,11 +13,15 @@ import (
 type Store struct {
 	DB *sql.DB
 }
+
 // do hashing in this function
-func AddUser (store *Store, username string, password string) error {
+func AddUser(store *Store, username string, password string) error {
 	ctx, cancel := context.WithTimeout(context.Background(), 5*time.Second)
 	defer cancel()
 	passwordHash, err := bcrypt.GenerateFromPassword([]byte(password), bcrypt.DefaultCost)
+	if err != nil {
+		return err
+	}
 	result, err := store.DB.ExecContext(
 		ctx,
 		"INSERT INTO users (username, password) VALUES (?, ?)",
@@ -35,10 +39,73 @@ func AddUser (store *Store, username string, password string) error {
 	return nil
 }
 
+func RemoveUser(store *Store, id int) error {
+	ctx, cancel := context.WithTimeout(context.Background(), 5*time.Second)
+	defer cancel()
+	result, err := store.DB.ExecContext(
+		ctx,
+		"DELETE FROM users WHERE id = ?",
+		id)
+	if err != nil {
+		return err
+	}
 
+	// Optional: Check rows affected
+	rows, err := result.RowsAffected()
+	if err == nil {
+		log.Printf("Successfully inserted %d row(s)", rows)
+	}
 
+	return nil
+}
 
-func InitDB () (*Store, error) {
+func GetUsers(store *Store) (*sql.Rows, error) {
+	return store.DB.QueryContext(
+		context.Background(),
+		"SELECT id, username, password, created_at FROM users",
+	)
+}
+
+func UserExists(store *Store, username string) (bool, error) {
+	ctx, cancel := context.WithTimeout(context.Background(), 5*time.Second)
+	defer cancel()
+
+	var count int
+	err := store.DB.QueryRowContext(
+		ctx,
+		"SELECT COUNT(*) FROM users WHERE username = ?",
+		username,
+	).Scan(&count)
+	if err != nil {
+		return false, err
+	}
+
+	return count > 0, nil
+}
+
+func UpdateUser(store *Store, id int) error {
+
+	return nil
+}
+
+func UserLogin(store *Store, username string, password string) error {
+	ctx, cancel := context.WithTimeout(context.Background(), 5*time.Second)
+	defer cancel()
+
+	var passwordHash []byte
+	err := store.DB.QueryRowContext(
+		ctx,
+		"SELECT password FROM users WHERE username = ?",
+		username,
+	).Scan(&passwordHash)
+	if err != nil {
+		return err
+	}
+
+	return bcrypt.CompareHashAndPassword(passwordHash, []byte(password))
+}
+
+func InitDB() (*Store, error) {
 	db, err := sql.Open("sqlite", "rom-pack.db")
 	if err != nil {
 		return nil, fmt.Errorf("open database: %w", err)
@@ -69,7 +136,7 @@ func InitDB () (*Store, error) {
 	}
 	defer tx.Rollback()
 	for _, statement := range []string{
-		`CREATE TABLE users (
+		`CREATE TABLE IF NOT EXISTS users (
 			id INTEGER PRIMARY KEY AUTOINCREMENT,
 			username TEXT NOT NULL UNIQUE,
 			password TEXT NOT NULL,
@@ -82,5 +149,5 @@ func InitDB () (*Store, error) {
 	}
 	tx.Commit()
 
-	return &Store{ DB: db }, nil
+	return &Store{DB: db}, nil
 }

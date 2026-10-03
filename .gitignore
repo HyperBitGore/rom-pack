@@ -5,3 +5,4 @@ build
 font_loader.log
 imgui.ini
 rom_pack
+server/config.json

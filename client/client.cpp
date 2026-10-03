@@ -8,7 +8,6 @@
 #include "backends/imgui_impl_sdl2.h"
 #include "current_page.hpp"
 #include <curl/curl.h>
-#include <iostream>
 #include "pages.hpp"
 
 // Bridge for gui elements?, elements themselves are decorated hierachy, Bridge is just a blob of them
@@ -28,37 +27,11 @@
 //      - password
 //  - Local selection gui
 //      - select if on local or want to connect to server
+//  - admin page
+//      - add/manage users
 
 
 int main(int, char**) {
-    CURL* curl = curl_easy_init();
-    if (!curl) {
-        std::cout << "Error starting curl!" << std::endl;
-        return -1;
-    }
-    /*request::ProcessResponse process_response = [](
-        const char* data,
-        size_t size,
-        size_t count,
-        const std::string& url
-    ) -> size_t {
-        const size_t bytes = size * count;
-        std::cout << "Response from " << url << ": "
-                  << std::string(data, bytes) << '\n';
-        return bytes;
-    };
-
-    const int r = request::sendRequest(
-        "http://127.0.0.1:8080/alive",
-        curl,
-        {},
-        process_response
-    );
-    std::cout << "Request result: " << r << '\n';
-    if (r != 1) {
-        std::cout << "Server error!" << std::endl;
-        return -1;
-    }*/
 
     if (SDL_Init(SDL_INIT_VIDEO | SDL_INIT_TIMER | SDL_INIT_GAMECONTROLLER) != 0) {
         std::fprintf(stderr, "SDL_Init failed: %s\n", SDL_GetError());

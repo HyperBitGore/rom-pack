@@ -31,6 +31,11 @@ class status_text : public item {
         return false;
     }
 };
+struct login_state {
+    std::string username;
+    std::string password;
+    std::string status;
+};
 }
 
 std::unique_ptr<elements> pages::constructLocalSelectionPage () {
@@ -119,7 +124,7 @@ std::unique_ptr<elements> pages::constructServerConnectPage () {
 
         if (result == 1 && status_code >= 200 && status_code < 300) {
             state->status = "Connected";
-            current_page::instance().set_page(pages::constructMainPage());
+            current_page::instance().set_page(pages::constructLoginPage(state->address));
         } else {
             state->status = "Connection failed";
         }
@@ -137,5 +142,70 @@ std::unique_ptr<elements> pages::constructServerConnectPage () {
         "Back", 0.0f, 0.0f, 100.0f, 30.0f, back_click, no_keydown
     ));
     page->addItem(std::make_unique<status_text>(&state->status));
+    return page;
+}
+
+std::unique_ptr<elements> pages::constructLoginPage (std::string address) {
+    using click_handler = std::function<bool(float, float)>;
+    using keydown_handler = bool (*)(int);
+    const click_handler no_click = [](float, float) {
+        return false;
+    };
+    const click_handler back_click = [](float, float) {
+        current_page::instance().set_page(pages::constructServerConnectPage());
+        return true;
+    };
+    const keydown_handler no_keydown = [](int) {
+        return false;
+    };
+    auto state = std::make_shared<login_state>();
+    const click_handler login_click = [state, address](float, float) {
+        state->status = "Connecting...";
+        CURL* curl = curl_easy_init();
+        if (curl == nullptr) {
+            state->status = "Connection failed: unable to initialize curl";
+            return true;
+        }
+
+        request::ProcessResponse response = [](
+            const char*,
+            size_t size,
+            size_t count,
+            const std::string&
+        ) {
+            return size * count;
+        };
+        const int result = request::sendRequest(
+            address + "/alive", curl, {}, response
+        );
+        long status_code = 0;
+        curl_easy_getinfo(curl, CURLINFO_RESPONSE_CODE, &status_code);
+        curl_easy_cleanup(curl);
+
+        if (result == 1 && status_code >= 200 && status_code < 300) {
+            state->status = "Connected";
+            current_page::instance().set_page(pages::constructMainPage());
+            return true;
+        } else {
+            state->status = "Connection failed";
+        }
+        return false;
+    };
+    auto page = std::make_unique<elements>();
+    page->addItem(std::make_unique<text_input<click_handler, keydown_handler>>(
+        state->username, 0.0f, 0.0f, 250.0f, 30.0f, no_click, no_keydown,
+        &state->username
+    ));
+    page->addItem(std::make_unique<text_input<click_handler, keydown_handler>>(
+        state->password, 0.0f, 0.0f, 250.0f, 30.0f, no_click, no_keydown,
+        &state->password
+    ));
+    page->addItem(std::make_unique<status_text>(&state->status));
+    page->addItem(std::make_unique<button<click_handler, keydown_handler>>(
+        "Login", 0.0f, 0.0f, 100.0f, 30.0f, login_click, no_keydown
+    ));
+    page->addItem(std::make_unique<button<click_handler, keydown_handler>>(
+        "Back", 0.0f, 0.0f, 100.0f, 30.0f, back_click, no_keydown
+    ));
     return page;
 }
