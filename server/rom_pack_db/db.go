@@ -8,6 +8,7 @@ import (
 	"time"
 
 	"golang.org/x/crypto/bcrypt"
+	_ "modernc.org/sqlite"
 )
 
 type Store struct {

@@ -2,10 +2,13 @@ package main
 
 import (
 	"encoding/json"
+	"errors"
 	"fmt"
+	"io"
 	"log"
 	"net/http"
 	"os"
+	"strings"
 	"time"
 
 	"rom_pack/rom_pack_db"
@@ -50,6 +53,23 @@ func writeJSON(w http.ResponseWriter, status int, value any) {
 func writeAPIError(w http.ResponseWriter, status int, message string) {
 	writeJSON(w, status, errorResponse{Error: message})
 }
+const maxJSONBodySize = 64 << 10
+func decodeJSON(w http.ResponseWriter, r *http.Request, destination any) error {
+	if mediaType := strings.ToLower(strings.TrimSpace(strings.Split(r.Header.Get("Content-Type"), ";")[0])); mediaType != "application/json" {
+		return errors.New("Content-Type must be application/json")
+	}
+	r.Body = http.MaxBytesReader(w, r.Body, maxJSONBodySize)
+	decoder := json.NewDecoder(r.Body)
+	decoder.DisallowUnknownFields()
+	if err := decoder.Decode(destination); err != nil {
+		return errors.New("invalid JSON request body")
+	}
+	if err := decoder.Decode(&struct{}{}); err != io.EOF {
+		return errors.New("request body must contain one JSON value")
+	}
+	return nil
+}
+
 
 func main() {
 	fmt.Println("Starting ROM-Pack!")
@@ -80,6 +100,26 @@ func main() {
 			return
 		}
 		w.WriteHeader(http.StatusOK)
+	})
+	mux.HandleFunc("/login", func(w http.ResponseWriter, r *http.Request) {
+		if r.Method != http.MethodPut {
+			writeAPIError(w, http.StatusMethodNotAllowed, "Method not allowed")
+			return
+		}
+		var credentials struct {
+			Username           string `json:"username"`
+			Password       string `json:"password"`
+		}
+		if err := decodeJSON(w, r, &credentials); err != nil {
+			writeAPIError(w, http.StatusBadRequest, err.Error())
+			return
+		}
+		login_ok := rom_pack_db.UserLogin(store, credentials.Username, credentials.Password)
+		if login_ok != nil {
+			writeAPIError(w, http.StatusBadRequest, login_ok.Error())
+			return
+		}
+		w.WriteHeader(http.StatusAccepted)
 	})
 	var handler http.Handler = mux
 	server := &http.Server{

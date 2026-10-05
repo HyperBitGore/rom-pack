@@ -1,4 +1,5 @@
 #include "request.hpp"
+#include "curl/easy.h"
 
 size_t request::writeCallback(
     char* data,
@@ -14,19 +15,44 @@ int32_t request::sendRequest(
     const std::string& url,
     CURL* curl,
     const std::vector<uint8_t>& body,
-    ProcessResponse& response_process
+    ProcessResponse& response_process,
+    const std::map<std::string, std::string> header,
+    REQUEST_METHOD method
 ) {
     if (!curl) {
         return -1;
     }
 
     ResponseContext context{&response_process, &url};
-
+    switch (method) {
+    case REQUEST_METHOD::PUT:
+        curl_easy_setopt(curl, CURLOPT_UPLOAD, 1L);
+        break;
+    case REQUEST_METHOD::POST:
+        curl_easy_setopt(curl, CURLOPT_POST, 1L);
+        break;
+    case REQUEST_METHOD::HEAD:
+        curl_easy_setopt(curl, CURLOPT_NOBODY, 1L);
+      break;
+    case REQUEST_METHOD::GET:
+    }
     curl_easy_setopt(curl, CURLOPT_URL, url.c_str());
     curl_easy_setopt(curl, CURLOPT_WRITEFUNCTION, &request::writeCallback);
     curl_easy_setopt(curl, CURLOPT_WRITEDATA, &context);
-
+    // header writing
+    curl_slist *headers = nullptr;
+    if (!header.empty()) {
+        for (auto& i : header) {
+            headers = curl_slist_append(headers, std::string(i.first + ": " + i.second).c_str());
+        }
+        curl_easy_setopt(curl, CURLOPT_HTTPHEADER, headers);
+    }
+    // body
+    curl_easy_setopt(curl, CURLOPT_POSTFIELDS, body.data());
     const CURLcode result = curl_easy_perform(curl);
+    if (headers != nullptr) {
+        curl_slist_free_all(headers);
+    }
     if (result != CURLE_OK) {
         return -static_cast<int32_t>(result);
     }

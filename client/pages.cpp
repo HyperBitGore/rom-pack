@@ -175,19 +175,20 @@ std::unique_ptr<elements> pages::constructLoginPage (std::string address) {
         ) {
             return size * count;
         };
+        // need to send username/password over body, add json helper functions
         const int result = request::sendRequest(
-            address + "/alive", curl, {}, response
+            address + "/login", curl, {}, response, { {"Content-Type", "application/json"} }, REQUEST_METHOD::PUT
         );
         long status_code = 0;
         curl_easy_getinfo(curl, CURLINFO_RESPONSE_CODE, &status_code);
         curl_easy_cleanup(curl);
 
         if (result == 1 && status_code >= 200 && status_code < 300) {
-            state->status = "Connected";
+            state->status = "Logged In";
             current_page::instance().set_page(pages::constructMainPage());
             return true;
         } else {
-            state->status = "Connection failed";
+            state->status = "Login failed";
         }
         return false;
     };
