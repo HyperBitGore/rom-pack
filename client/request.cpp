@@ -26,10 +26,17 @@ int32_t request::sendRequest(
     ResponseContext context{&response_process, &url};
     switch (method) {
     case REQUEST_METHOD::PUT:
-        curl_easy_setopt(curl, CURLOPT_UPLOAD, 1L);
+        curl_easy_setopt(curl, CURLOPT_CUSTOMREQUEST, "PUT");
+        curl_easy_setopt(curl, CURLOPT_POSTFIELDS, body.data());
+        curl_easy_setopt(curl, CURLOPT_POSTFIELDSIZE,
+            static_cast<long>(body.size()));
         break;
     case REQUEST_METHOD::POST:
         curl_easy_setopt(curl, CURLOPT_POST, 1L);
+        // body
+        curl_easy_setopt(curl, CURLOPT_POSTFIELDS, body.data());
+        curl_easy_setopt(curl, CURLOPT_POSTFIELDSIZE,
+            static_cast<long>(body.size()));
         break;
     case REQUEST_METHOD::HEAD:
         curl_easy_setopt(curl, CURLOPT_NOBODY, 1L);
@@ -47,8 +54,6 @@ int32_t request::sendRequest(
         }
         curl_easy_setopt(curl, CURLOPT_HTTPHEADER, headers);
     }
-    // body
-    curl_easy_setopt(curl, CURLOPT_POSTFIELDS, body.data());
     const CURLcode result = curl_easy_perform(curl);
     if (headers != nullptr) {
         curl_slist_free_all(headers);

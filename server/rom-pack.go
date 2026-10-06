@@ -53,7 +53,9 @@ func writeJSON(w http.ResponseWriter, status int, value any) {
 func writeAPIError(w http.ResponseWriter, status int, message string) {
 	writeJSON(w, status, errorResponse{Error: message})
 }
+
 const maxJSONBodySize = 64 << 10
+
 func decodeJSON(w http.ResponseWriter, r *http.Request, destination any) error {
 	if mediaType := strings.ToLower(strings.TrimSpace(strings.Split(r.Header.Get("Content-Type"), ";")[0])); mediaType != "application/json" {
 		return errors.New("Content-Type must be application/json")
@@ -69,7 +71,6 @@ func decodeJSON(w http.ResponseWriter, r *http.Request, destination any) error {
 	}
 	return nil
 }
-
 
 func main() {
 	fmt.Println("Starting ROM-Pack!")
@@ -107,8 +108,8 @@ func main() {
 			return
 		}
 		var credentials struct {
-			Username           string `json:"username"`
-			Password       string `json:"password"`
+			Username string `json:"username"`
+			Password string `json:"password"`
 		}
 		if err := decodeJSON(w, r, &credentials); err != nil {
 			writeAPIError(w, http.StatusBadRequest, err.Error())

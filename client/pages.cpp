@@ -5,6 +5,7 @@
 #include "request.hpp"
 #include <functional>
 #include <memory>
+#include <nlohmann/json.hpp>
 
 namespace {
 struct connection_state {
@@ -175,9 +176,15 @@ std::unique_ptr<elements> pages::constructLoginPage (std::string address) {
         ) {
             return size * count;
         };
-        // need to send username/password over body, add json helper functions
+        const nlohmann::json credentials{
+            {"username", state->username},
+            {"password", state->password}
+        };
+        const std::string body = credentials.dump();
+        const std::vector<uint8_t> body_bytes(body.begin(), body.end());
         const int result = request::sendRequest(
-            address + "/login", curl, {}, response, { {"Content-Type", "application/json"} }, REQUEST_METHOD::PUT
+            address + "/login", curl, body_bytes, response,
+            { {"Content-Type", "application/json"} }, REQUEST_METHOD::PUT
         );
         long status_code = 0;
         curl_easy_getinfo(curl, CURLINFO_RESPONSE_CODE, &status_code);
