@@ -14,6 +14,18 @@ import (
 	"rom_pack/rom_pack_db"
 )
 
+// local server
+//	- if user runs the client in local mode, start up a localserver
+// store the games by system, user provides system info
+//	- check if user system input correct??
+//	- preprocess file and determine best way to compress it
+//	- throw the compressed folder/game executable into the proper folder
+//	- when user requests a download feed it to them as the decompressed bytes??
+// export database
+//	- export the game files into one giant blob recompressed to achieve maximum compression??
+//	- maybe be able to choose specific games/categories you want to export
+//	- can stream this download to user or run command on server
+
 type config struct {
 	AdminUsername string `json:"admin_username"`
 	AdminPassword string `json:"admin_password"`
@@ -72,11 +84,29 @@ func decodeJSON(w http.ResponseWriter, r *http.Request, destination any) error {
 	return nil
 }
 
+func authMiddleware(store *rom_pack_db.Store, next http.Handler) http.Handler {
+	return http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		const prefix = "Bearer "
+		auth := r.Header.Get("Authorization")
+		if !strings.HasPrefix(auth, prefix) {
+			writeAPIError(w, http.StatusUnauthorized, "Authentication required")
+			return
+		}
+
+		if _, err := rom_pack_db.GetUserToken(store, strings.TrimSpace(strings.TrimPrefix(auth, prefix))); err != nil {
+			writeAPIError(w, http.StatusUnauthorized, "Invalid or expired token")
+			return
+		}
+		next.ServeHTTP(w, r)
+	})
+}
+
 func main() {
 	fmt.Println("Starting ROM-Pack!")
 	store, err := rom_pack_db.InitDB()
 	if err != nil {
 		log.Fatalf("initialize database: %v", err)
+		return
 	}
 	defer store.DB.Close()
 
@@ -120,8 +150,32 @@ func main() {
 			writeAPIError(w, http.StatusBadRequest, login_ok.Error())
 			return
 		}
-		w.WriteHeader(http.StatusAccepted)
+		userID, err := rom_pack_db.GetUserID(store, credentials.Username)
+		if err != nil {
+			writeAPIError(w, http.StatusInternalServerError, "Unable to find logged-in user")
+			return
+		}
+		token, err := rom_pack_db.AddUserToken(store, userID)
+		if err != nil {
+			writeAPIError(w, http.StatusInternalServerError, "Unable to create login token")
+			return
+		}
+		writeJSON(w, http.StatusAccepted, struct {
+			Token     string `json:"token"`
+			ExpiresIn int    `json:"expires_in"`
+		}{
+			Token:     token,
+			ExpiresIn: 7 * 24 * 60 * 60,
+		})
 	})
+	mux.Handle("/upload", authMiddleware(store, http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		if r.Method != http.MethodPost {
+			writeAPIError(w, http.StatusMethodNotAllowed, "Method not allowed")
+			return
+		}
+
+		w.WriteHeader(http.StatusOK)
+	})))
 	var handler http.Handler = mux
 	server := &http.Server{
 		Addr:              "127.0.0.1:8080",

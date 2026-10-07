@@ -10,8 +10,6 @@ type Store struct {
 	DB *sql.DB
 }
 
-
-
 func InitDB() (*Store, error) {
 	db, err := sql.Open("sqlite", "rom-pack.db")
 	if err != nil {
@@ -49,16 +47,16 @@ func InitDB() (*Store, error) {
 			password_hash TEXT NOT NULL,
 			created_at DATETIME NOT NULL DEFAULT CURRENT_TIMESTAMP
 		);`,
-		`CREATE TABLE IF NOT EXISTS game (
+		`CREATE TABLE IF NOT EXISTS games (
 			game_id INTEGER PRIMARY KEY AUTOINCREMENT,
-			user_id INTEGER NOT NULL REFERENCES users(id),
+			user_id INTEGER NOT NULL REFERENCES users(id) ON DELETE CASCADE,
 			game_name TEXT NOT NULL,
-			relative_path TEXT NOT NULL,
+			game_system TEXT NOT NULL,
 			game_size INTEGER NOT NULL,
 			checksum TEXT NOT NULL,
 			created_at DATETIME NOT NULL DEFAULT CURRENT_TIMESTAMP
 		);`,
-		`CREATE TABLE categories (
+		`CREATE TABLE IF NOT EXISTS categories (
 			id INTEGER PRIMARY KEY AUTOINCREMENT,
 			user_id INTEGER NOT NULL
 				REFERENCES users(id) ON DELETE CASCADE,
@@ -67,20 +65,45 @@ func InitDB() (*Store, error) {
 			created_at DATETIME NOT NULL DEFAULT CURRENT_TIMESTAMP,
 			UNIQUE(user_id, slug)
 		);`,
-		`CREATE TABLE game_categories (
+		`CREATE TABLE IF NOT EXISTS game_categories (
 			game_id INTEGER NOT NULL
-				REFERENCES games(id) ON DELETE CASCADE,
+				REFERENCES games(game_id) ON DELETE CASCADE,
 			category_id INTEGER NOT NULL
 				REFERENCES categories(id) ON DELETE CASCADE,
 			added_at DATETIME NOT NULL DEFAULT CURRENT_TIMESTAMP,
 			PRIMARY KEY (game_id, category_id)
 		);`,
+		`CREATE TABLE IF NOT EXISTS tokens (
+			id INTEGER PRIMARY KEY AUTOINCREMENT,
+			user_id INTEGER NOT NULL
+				REFERENCES users(id) ON DELETE CASCADE,
+			token_hash TEXT NOT NULL UNIQUE,
+			expires_at DATETIME NOT NULL,
+			created_at DATETIME NOT NULL DEFAULT CURRENT_TIMESTAMP
+		);`,
+		`CREATE TABLE IF NOT EXISTS blobs (
+			id INTEGER PRIMARY KEY AUTOINCREMENT,
+			game_id INTEGER NOT NULL
+				REFERENCES games(game_id) ON DELETE CASCADE,
+			file_path TEXT NOT NULL,
+			compression_format TEXT NOT NULL,
+			created_at DATETIME NOT NULL DEFAULT CURRENT_TIMESTAMP
+		);`,
+		`CREATE INDEX IF NOT EXISTS idx_games_user_id ON games(user_id);`,
+		`CREATE INDEX IF NOT EXISTS idx_categories_user_id ON categories(user_id);`,
+		`CREATE INDEX IF NOT EXISTS idx_game_categories_category_id
+			ON game_categories(category_id);`,
+		`CREATE INDEX IF NOT EXISTS idx_tokens_user_id ON tokens(user_id);`,
+		`CREATE INDEX IF NOT EXISTS idx_blobs_game_id ON blobs(game_id);`,
 	} {
 		if _, err := tx.Exec(statement); err != nil {
 			return nil, fmt.Errorf("apply schema version 1: %w", err)
 		}
 	}
-	tx.Commit()
+	if err := tx.Commit(); err != nil {
+		db.Close()
+		return nil, fmt.Errorf("commit schema version 1: %w", err)
+	}
 
 	return &Store{DB: db}, nil
 }

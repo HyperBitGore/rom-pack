@@ -8,3 +8,4 @@ rom_pack
 server/config.json
 *.db
 *.db*
+rom-pack.token

@@ -3,11 +3,21 @@
 #include "elements/button.hpp"
 #include "elements/text_input.hpp"
 #include "request.hpp"
+#include <fstream>
 #include <functional>
 #include <memory>
 #include <nlohmann/json.hpp>
 
 namespace {
+bool saveToken(const std::string& token) {
+    std::ofstream file("rom-pack.token", std::ios::trunc);
+    if (!file) {
+        return false;
+    }
+    file << token;
+    return file.good();
+}
+
 struct connection_state {
     std::string address{"http://127.0.0.1:8080"};
     std::string status{"Not connected"};
@@ -168,12 +178,14 @@ std::unique_ptr<elements> pages::constructLoginPage (std::string address) {
             return true;
         }
 
-        request::ProcessResponse response = [](
-            const char*,
+        std::string response_body;
+        request::ProcessResponse response = [&response_body](
+            const char* data,
             size_t size,
             size_t count,
             const std::string&
         ) {
+            response_body.append(data, size * count);
             return size * count;
         };
         const nlohmann::json credentials{
@@ -191,6 +203,16 @@ std::unique_ptr<elements> pages::constructLoginPage (std::string address) {
         curl_easy_cleanup(curl);
 
         if (result == 1 && status_code >= 200 && status_code < 300) {
+            try {
+                const auto response_json = nlohmann::json::parse(response_body);
+                if (!saveToken(response_json.at("token").get<std::string>())) {
+                    state->status = "Login failed: unable to store token";
+                    return false;
+                }
+            } catch (const nlohmann::json::exception&) {
+                state->status = "Login failed: invalid server response";
+                return false;
+            }
             state->status = "Logged In";
             current_page::instance().set_page(pages::constructMainPage());
             return true;

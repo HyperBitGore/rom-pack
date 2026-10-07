@@ -78,6 +78,15 @@ func UserExists(store *Store, username string) (bool, error) {
 	return count > 0, nil
 }
 
+func GetUserID(store *Store, username string) (int, error) {
+	var userID int
+	err := store.DB.QueryRow(
+		"SELECT id FROM users WHERE username = ?",
+		username,
+	).Scan(&userID)
+	return userID, err
+}
+
 func UpdateUser(store *Store, id int) error {
 
 	return nil
