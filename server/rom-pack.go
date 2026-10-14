@@ -1,6 +1,7 @@
 package main
 
 import (
+	"context"
 	"encoding/json"
 	"errors"
 	"fmt"
@@ -93,11 +94,12 @@ func authMiddleware(store *rom_pack_db.Store, next http.Handler) http.Handler {
 			return
 		}
 
-		if _, err := rom_pack_db.GetUserToken(store, strings.TrimSpace(strings.TrimPrefix(auth, prefix))); err != nil {
+		userID, err := rom_pack_db.GetUserToken(store, strings.TrimSpace(strings.TrimPrefix(auth, prefix)))
+		if err != nil {
 			writeAPIError(w, http.StatusUnauthorized, "Invalid or expired token")
 			return
 		}
-		next.ServeHTTP(w, r)
+		next.ServeHTTP(w, r.WithContext(context.WithValue(r.Context(), userIDContextKey{}, userID)))
 	})
 }
 
@@ -168,14 +170,7 @@ func main() {
 			ExpiresIn: 7 * 24 * 60 * 60,
 		})
 	})
-	mux.Handle("/upload", authMiddleware(store, http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
-		if r.Method != http.MethodPost {
-			writeAPIError(w, http.StatusMethodNotAllowed, "Method not allowed")
-			return
-		}
-
-		w.WriteHeader(http.StatusOK)
-	})))
+	mux.Handle("/upload", authMiddleware(store, HandleFileUpload(store)))
 	var handler http.Handler = mux
 	server := &http.Server{
 		Addr:              "127.0.0.1:8080",
