@@ -13,6 +13,7 @@ class current_page {
         next_page = std::move(els);
     }
     void render ();
+    bool run = true;
     private:
     std::unique_ptr<elements> page_elements;
     std::unique_ptr<elements> next_page;

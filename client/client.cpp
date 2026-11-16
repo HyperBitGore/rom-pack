@@ -7,7 +7,6 @@
 #include "backends/imgui_impl_opengl3.h"
 #include "backends/imgui_impl_sdl2.h"
 #include "current_page.hpp"
-#include <curl/curl.h>
 #include "pages.hpp"
 
 // Bridge for gui elements?, elements themselves are decorated hierachy, Bridge is just a blob of them
@@ -20,13 +19,9 @@
 //      - game launch / edit
 //  - Add game gui
 //      - process to add game
+//      - set target executable/script
 //      - select game folder/files
 //      - select category
-//  - Login gui
-//      - username
-//      - password
-//  - Local selection gui
-//      - select if on local or want to connect to server
 //  - admin page
 //      - add/manage users
 
@@ -79,7 +74,7 @@ int main(int, char**) {
     ImGui_ImplOpenGL3_Init("#version 330");
     {
         current_page& current_page = current_page::instance();
-        current_page.set_page(pages::constructLocalSelectionPage());
+        current_page.set_page(pages::constructMainPage());
     }
     bool running = true;
     while (running) {
@@ -109,6 +104,9 @@ int main(int, char**) {
         glClear(GL_COLOR_BUFFER_BIT);
         ImGui_ImplOpenGL3_RenderDrawData(ImGui::GetDrawData());
         SDL_GL_SwapWindow(window);
+        if (!current_page.run) {
+            break;
+        }
     }
 
     ImGui_ImplOpenGL3_Shutdown();

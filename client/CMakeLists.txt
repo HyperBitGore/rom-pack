@@ -27,7 +27,7 @@ set(CURL_USE_LIBPSL OFF CACHE BOOL "" FORCE)
 FetchContent_Declare(
     curl
     GIT_REPOSITORY https://github.com/curl/curl.git
-    GIT_TAG curl-8_11_1
+    GIT_TAG curl-8_23_0
     GIT_SHALLOW TRUE
 )
 FetchContent_MakeAvailable(curl)
