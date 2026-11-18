@@ -13,8 +13,9 @@
 // Pages just use virtual classes and a unique_ptr in main, factory function that populates it??
 
 // TODO
-//  - Main page gui
-//      - display games in account in like a table?
+//  - Game database
+//      - local file which maps game folders
+//      - game folders contain rompack file which details launch script?? Or just store in db?
 //  - Game page gui
 //      - game launch / edit
 //  - Add game gui
@@ -22,8 +23,6 @@
 //      - set target executable/script
 //      - select game folder/files
 //      - select category
-//  - admin page
-//      - add/manage users
 
 
 int main(int, char**) {

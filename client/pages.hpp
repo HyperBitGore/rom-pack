@@ -7,4 +7,5 @@ class pages {
     static std::unique_ptr<elements> constructMainPage ();
     static std::unique_ptr<elements> constructGameDetailsPage ();
     static std::unique_ptr<elements> constructAddGamePage ();
+    static std::unique_ptr<elements> constructGameListPage ();
 };
