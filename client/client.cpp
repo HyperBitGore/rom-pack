@@ -2,7 +2,10 @@
 
 #include <SDL.h>
 #include <SDL_opengl.h>
+#include <iostream>
+#include <stdexcept>
 
+#include "database.hpp"
 #include "imgui.h"
 #include "backends/imgui_impl_opengl3.h"
 #include "backends/imgui_impl_sdl2.h"
@@ -13,9 +16,6 @@
 // Pages just use virtual classes and a unique_ptr in main, factory function that populates it??
 
 // TODO
-//  - Game database
-//      - local file which maps game folders
-//      - game folders contain rompack file which details launch script?? Or just store in db?
 //  - Game page gui
 //      - game launch / edit
 //  - Add game gui
@@ -26,7 +26,12 @@
 
 
 int main(int, char**) {
-
+    game_db& db = game_db::instance();
+    try {
+        db.load();
+    } catch (std::runtime_error e) {
+        std::cerr << e.what() << "\n";
+    }
     if (SDL_Init(SDL_INIT_VIDEO | SDL_INIT_TIMER | SDL_INIT_GAMECONTROLLER) != 0) {
         std::fprintf(stderr, "SDL_Init failed: %s\n", SDL_GetError());
         return 1;

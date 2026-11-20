@@ -48,6 +48,18 @@ FetchContent_Declare(
 )
 FetchContent_MakeAvailable(imgui)
 
+FetchContent_Declare(
+    portable_file_dialogs
+    GIT_REPOSITORY https://github.com/samhocevar/portable-file-dialogs.git
+    GIT_TAG 0.1.0
+    GIT_SHALLOW TRUE
+)
+FetchContent_Populate(portable_file_dialogs)
+add_library(portable_file_dialogs INTERFACE)
+target_include_directories(portable_file_dialogs INTERFACE
+    ${portable_file_dialogs_SOURCE_DIR}
+)
+
 find_package(OpenGL REQUIRED)
 
 add_library(imgui STATIC
@@ -78,6 +90,8 @@ add_executable(client ${CMAKE_CURRENT_SOURCE_DIR}/client.cpp
     pages.cpp
     current_page.hpp
     current_page.cpp
+    database.hpp
+    database.cpp
     elements/item.hpp
     elements/elements.hpp
     elements/elements.cpp
@@ -89,4 +103,5 @@ target_link_libraries(client PRIVATE
     imgui
     CURL::libcurl
     nlohmann_json::nlohmann_json
+    portable_file_dialogs
 )

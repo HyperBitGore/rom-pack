@@ -1,5 +1,6 @@
 #pragma once
 #include <filesystem>
+#include <string>
 #include <vector>
 // TODO
 //  - categories
@@ -9,27 +10,43 @@ class game {
     public:
     std::filesystem::path folder_path;
     std::filesystem::path executable;
+    std::string name;
+    std::string launch_options;
     // rule of 5
-    game (std::filesystem::path folder_path, std::filesystem::path executable) {
+    game (
+        std::filesystem::path folder_path,
+        std::filesystem::path executable,
+        std::string name,
+        std::string launch_options = {}
+    ) {
         this->folder_path = folder_path;
         this->executable = executable;
+        this->name = name;
+        this->launch_options = launch_options;
     }
     game (const game& g) {
         this->folder_path = g.folder_path;
         this->executable = g.executable;
+        this->name = g.name;
+        this->launch_options = g.launch_options;
     }
     game& operator=(const game& g) {
         this->folder_path = g.folder_path;
         this->executable = g.executable;
+        this->name = g.name;
         return *this;
     }
     game (game&& g) {
         this->folder_path = std::move(g.folder_path);
         this->executable = std::move(g.executable);
+        this->name = std::move(g.name);
+        this->launch_options = std::move(g.launch_options);
     }
     game& operator=(game&& g) {
         this->folder_path = std::move(g.folder_path);
         this->executable = std::move(g.executable);
+        this->name = std::move(g.name);
+        this->launch_options = std::move(g.launch_options);
         return *this;
     }
 };
@@ -49,9 +66,15 @@ class game_db {
         static game_db cur_p;
         return cur_p;
     }
-    void load (game_db* db);
-    void save (game_db* db);
+    void load ();
+    void save ();
     std::vector<game>& get_games () {
         return games;
     }
+    void addGame (
+        std::filesystem::path folder_path,
+        std::filesystem::path executable,
+        std::string name,
+        std::string launch_options
+    );
 };
