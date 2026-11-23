@@ -23,7 +23,11 @@
 //      - set target executable/script
 //      - select game folder/files
 //      - select category
-
+//  - Style so it isn't default ImGui slop
+//  - memmap db file instead of mass saving/loading?
+//  - Server
+//      - Login
+//      - Pack syncing
 
 int main(int, char**) {
     game_db& db = game_db::instance();
