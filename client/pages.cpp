@@ -4,6 +4,7 @@
 #include "elements/button.hpp"
 #include "elements/elements.hpp"
 #include "elements/text.hpp"
+#include <cstdlib>
 #include <filesystem>
 #include <imgui.h>
 #include <portable-file-dialogs.h>
@@ -125,7 +126,26 @@ std::unique_ptr<elements> pages::constructGameDetailsPage (game game) {
         current_page.set_page(constructGameListPage());
         return true;
     };
+    const click_handler play_click = [game](float, float) {
+        std::string combined = game.folder_path.string() + "/" + game.executable.string();
+        std::system(combined.c_str());
+        return true;
+    };
+    
+    const click_handler delete_click = [game](float, float) {
+        game_db& instance = game_db::instance();
+        instance.removeGame(game.name);
+        current_page& current_page = current_page::instance();
+        current_page.set_page(constructGameListPage());
+        return true;
+    };
     page->addItem(std::make_unique<text>(game.name, 0.0f, 0.0f, 100.0f, 40.0f));
+    page->addItem(std::make_unique<button<click_handler, keydown_handler>>(
+        "Play", 0.0f, 0.0f, 100.0f, 40.0f, play_click, no_keydown
+    ));
+    page->addItem(std::make_unique<button<click_handler, keydown_handler>>(
+        "Delete", 0.0f, 0.0f, 100.0f, 40.0f, delete_click, no_keydown
+    ));
     page->addItem(std::make_unique<button<click_handler, keydown_handler>>(
         "Back", 0.0f, 0.0f, 100.0f, 40.0f, back_click, no_keydown
     ));

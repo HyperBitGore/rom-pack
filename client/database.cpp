@@ -96,3 +96,12 @@ void game_db::addGame (
     games.push_back({folder_path, executable, name, launch_options});
     save();
 }
+
+void game_db::removeGame (std::string name) {
+    for (size_t i = 0; i < games.size(); i++) {
+        if (name == games[i].name) {
+            games.erase(games.begin() + i);
+            return;
+        }
+    }
+}

@@ -77,4 +77,5 @@ class game_db {
         std::string name,
         std::string launch_options
     );
+    void removeGame (std::string name);
 };
