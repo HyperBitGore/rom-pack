@@ -5,8 +5,7 @@
 
 class pages {
     public:
-    static std::unique_ptr<elements> constructMainPage ();
     static std::unique_ptr<elements> constructGameDetailsPage (game game);
-    static std::unique_ptr<elements> constructAddGamePage (); // TODO switch from popup to this
     static std::unique_ptr<elements> constructGameListPage ();
+    static std::unique_ptr<elements> constructExportGamesPage (); // TODO
 };

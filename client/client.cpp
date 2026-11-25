@@ -2,6 +2,7 @@
 
 #include <SDL.h>
 #include <SDL_opengl.h>
+#include <filesystem>
 #include <iostream>
 #include <stdexcept>
 
@@ -16,11 +17,56 @@
 // Pages just use virtual classes and a unique_ptr in main, factory function that populates it??
 
 // TODO
-//  - Style so it isn't default ImGui slop
+//  - export game pack
 //  - memmap db file instead of mass saving/loading?
 //  - Server
 //      - Login
 //      - Pack syncing
+//  - game images
+//  - rework popups to be more inline with element inheritance
+
+static void apply_theme() {
+    ImGui::StyleColorsDark();
+    auto& style = ImGui::GetStyle();
+    style.WindowPadding = {24, 20};
+    style.FramePadding = {12, 8};
+    style.ItemSpacing = {12, 10};
+    style.FrameRounding = 2.0f;
+    style.PopupRounding = 5.0f;
+
+    auto& colors = style.Colors;
+    colors[ImGuiCol_WindowBg] = {0.06f, 0.08f, 0.11f, 1.0f};
+    colors[ImGuiCol_PopupBg] = {0.10f, 0.13f, 0.17f, 1.0f};
+    colors[ImGuiCol_FrameBg] = {0.14f, 0.18f, 0.23f, 1.0f};
+    colors[ImGuiCol_FrameBgHovered] = {0.18f, 0.30f, 0.34f, 1.0f};
+    colors[ImGuiCol_FrameBgActive] = {0.18f, 0.36f, 0.40f, 1.0f};
+    colors[ImGuiCol_Button] = {0.14f, 0.24f, 0.28f, 1.0f};
+    colors[ImGuiCol_ButtonHovered] = {0.18f, 0.36f, 0.40f, 1.0f};
+    colors[ImGuiCol_ButtonActive] = {0.21f, 0.43f, 0.47f, 1.0f};
+    colors[ImGuiCol_Header] = colors[ImGuiCol_Button];
+    colors[ImGuiCol_HeaderHovered] = colors[ImGuiCol_ButtonHovered];
+    colors[ImGuiCol_HeaderActive] = colors[ImGuiCol_ButtonActive];
+    colors[ImGuiCol_TitleBg] = colors[ImGuiCol_PopupBg];
+    colors[ImGuiCol_TitleBgActive] = colors[ImGuiCol_FrameBg];
+    colors[ImGuiCol_CheckMark] = {0.44f, 0.82f, 0.78f, 1.0f};
+    colors[ImGuiCol_Separator] = {0.24f, 0.36f, 0.40f, 1.0f};
+
+    auto* fonts = ImGui::GetIO().Fonts;
+    for (const char* path : {
+        "/usr/share/fonts/noto/NotoSans-Regular.ttf",
+        "/usr/share/fonts/truetype/noto/NotoSans-Regular.ttf",
+        "/usr/share/fonts/truetype/dejavu/DejaVuSans.ttf"
+    }) {
+        std::error_code error;
+        if (std::filesystem::is_regular_file(path, error) &&
+            fonts->AddFontFromFileTTF(path, 17.0f)) {
+            return;
+        }
+    }
+    ImFontConfig font;
+    font.SizePixels = 17.0f;
+    fonts->AddFontDefault(&font);
+}
 
 int main(int, char**) {
     game_db& db = game_db::instance();
@@ -69,13 +115,13 @@ int main(int, char**) {
 
     IMGUI_CHECKVERSION();
     ImGui::CreateContext();
-    ImGui::StyleColorsDark();
+    apply_theme();
 
     ImGui_ImplSDL2_InitForOpenGL(window, gl_context);
     ImGui_ImplOpenGL3_Init("#version 330");
     {
         current_page& current_page = current_page::instance();
-        current_page.set_page(pages::constructMainPage());
+        current_page.set_page(pages::constructGameListPage());
     }
     bool running = true;
     while (running) {

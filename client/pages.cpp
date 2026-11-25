@@ -199,92 +199,88 @@ const click_handler no_click = [](float, float) {
 const keydown_handler no_keydown = [](int) {
     return false;
 };
-std::unique_ptr<elements> pages::constructMainPage () {
-    const click_handler quit_click = [](float, float) {
-        current_page& current_page = current_page::instance();
-        current_page.run = false;
-        return true;
-    };
-    const click_handler game_click = [](float, float) {
-        current_page& current_page = current_page::instance();
-        current_page.set_page(constructGameListPage());
-        return true;
-    };
-    auto page = std::make_unique<elements>();
-    page->addItem(std::make_unique<button<click_handler, keydown_handler>>(
-        "Games", 0.0f, 0.0f, 100.0f, 30.0f, game_click, no_keydown
-    ));
-    page->addItem(std::make_unique<button<click_handler, keydown_handler>>(
-        "Settings", 0.0f, 0.0f, 100.0f, 30.0f, no_click, no_keydown
-    ));
-    page->addItem(std::make_unique<button<click_handler, keydown_handler>>(
-        "Quit", 0.0f, 0.0f, 100.0f, 30.0f, quit_click, no_keydown
-    ));
-    return page;
-}
+
+class game_list final : public item {
+    std::vector<std::pair<std::string, std::vector<game>>> sections;
+
+public:
+    game_list () {
+        auto& db = game_db::instance();
+        for (auto& category : db.getCategories()) {
+            sections.emplace_back(category.getName(), category.getGames());
+        }
+        std::vector<game> uncategorized;
+        for (const auto& entry : db.get_games()) {
+            if (db.getCategories(entry).empty()) {
+                uncategorized.push_back(entry);
+            }
+        }
+        if (!uncategorized.empty()) {
+            sections.emplace_back("Uncategorized", std::move(uncategorized));
+        }
+    }
+
+    bool onclick (float, float) override {
+        return false;
+    }
+
+    bool onkeydown (int) override {
+        return false;
+    }
+
+    void render () override {
+        if (ImGui::Button("Quit")) {
+            current_page& current_page = current_page::instance();
+            current_page.run = false;
+        }
+        for (const char* action : {"Add Game", "Add Category", "Settings"}) {
+            const auto& style = ImGui::GetStyle();
+            if (ImGui::GetItemRectMax().x + style.ItemSpacing.x +
+                ImGui::CalcTextSize(action).x + 2 * style.FramePadding.x <=
+                ImGui::GetCursorScreenPos().x + ImGui::GetContentRegionAvail().x) {
+                ImGui::SameLine();
+            }
+            if (ImGui::Button(action)) {
+                ImGui::OpenPopup(action);
+            }
+        }
+        ImGui::Spacing();
+
+        const int columns = std::clamp(
+            static_cast<int>(ImGui::GetContentRegionAvail().x / 180.0f), 1, 8
+        );
+        int section_id = 0;
+        for (const auto& [name, games] : sections) {
+            ImGui::SeparatorText(name.c_str());
+            ImGui::PushID(section_id++);
+            if (!games.empty() && ImGui::BeginTable("Games", columns, ImGuiTableFlags_SizingStretchSame)) {
+                int game_id = 0;
+                for (const auto& entry : games) {
+                    ImGui::TableNextColumn();
+                    ImGui::PushID(game_id++);
+                    const std::string label = entry.name + "###game";
+                    if (ImGui::Button(label.c_str(), {-1.0f, 52.0f})) {
+                        current_page::instance().set_page(pages::constructGameDetailsPage(entry));
+                    }
+                    if (ImGui::CalcTextSize(label.c_str(), nullptr, true).x +
+                        2 * ImGui::GetStyle().FramePadding.x > ImGui::GetItemRectSize().x &&
+                        ImGui::IsItemHovered(ImGuiHoveredFlags_ForTooltip)) {
+                        ImGui::SetTooltip("%s", entry.name.c_str());
+                    }
+                    ImGui::PopID();
+                }
+                ImGui::EndTable();
+            }
+            ImGui::PopID();
+        }
+    }
+};
 
 std::unique_ptr<elements> pages::constructGameListPage () {
     auto page = std::make_unique<elements>();
-    const click_handler back_click = [](float, float) {
-        current_page& current_page = current_page::instance();
-        current_page.set_page(constructMainPage());
-        return true;
-    };
-    const click_handler add_click = [](float, float) {
-        ImGui::OpenPopup("Add Game");
-        return true;
-    };
-    const click_handler add_category = [](float, float) {
-        ImGui::OpenPopup("Add Category");
-        return true;
-    };
-    page->addItem(std::make_unique<button<click_handler, keydown_handler>>(
-        "Back", 0.0f, 0.0f, 100.0f, 40.0f, back_click, no_keydown
-    ));
-    page->addItem(std::make_unique<button<click_handler, keydown_handler>>(
-        "Add Game", 0.0f, 0.0f, 100.0f, 40.0f, add_click, no_keydown
-    ));
-     page->addItem(std::make_unique<button<click_handler, keydown_handler>>(
-        "Add Category", 0.0f, 0.0f, 100.0f, 40.0f, add_category, no_keydown
-    ));
+    page->addItem(std::make_unique<game_list>());
     page->addItem(std::make_unique<game_add_popup>());
     page->addItem(std::make_unique<category_add_popup>());
-    game_db& instance = game_db::instance();
-    size_t row = 0;
-    const auto add_game = [&](const game& entry) {
-        const click_handler game_click = [game = entry](float, float) {
-            current_page& current_page = current_page::instance();
-            current_page.set_page(constructGameDetailsPage(game));
-            return true;
-        };
-        page->addItem(std::make_unique<button<click_handler, keydown_handler>>(
-            entry.name + "###game_row_" + std::to_string(row++),
-            0.0f, 0.0f, 0.0f, 40.0f, game_click, no_keydown
-        ));
-    };
-    for (auto& category : instance.getCategories()) {
-        page->addItem(std::make_unique<text>(
-            category.getName(), 0.0f, 0.0f, 100.0f, 40.0f
-        ));
-        for (const auto& entry : category.getGames()) {
-            add_game(entry);
-        }
-    }
-
-    bool has_uncategorized = false;
-    for (const auto& entry : instance.get_games()) {
-        if (!instance.getCategories(entry).empty()) {
-            continue;
-        }
-        if (!has_uncategorized) {
-            page->addItem(std::make_unique<text>(
-                "Uncategorized", 0.0f, 0.0f, 100.0f, 40.0f
-            ));
-            has_uncategorized = true;
-        }
-        add_game(entry);
-    }
-
     return page;
 }
 
