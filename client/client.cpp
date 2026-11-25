@@ -16,8 +16,6 @@
 // Pages just use virtual classes and a unique_ptr in main, factory function that populates it??
 
 // TODO
-//  - Add game gui
-//      - select category
 //  - Style so it isn't default ImGui slop
 //  - memmap db file instead of mass saving/loading?
 //  - Server

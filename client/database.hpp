@@ -92,6 +92,7 @@ class category {
     void addGame (game game);
     void removeGame (std::string name);
     std::vector<game> getGames();
+    bool gameExists (std::string name);
 };
 
 // singleton
@@ -106,6 +107,7 @@ class game_db {
     std::vector<game> games;
     std::vector<category> categories;
     void removeFromCategories (game game);
+    void assignCategories (const game& game, const std::vector<bool>& selected);
     public:
     static game_db& instance () {
         static game_db cur_p;
@@ -116,13 +118,26 @@ class game_db {
     std::vector<game>& get_games () {
         return games;
     }
+    std::vector<category>& get_categories () {
+        return categories;
+    }
     void addGame (
         std::filesystem::path folder_path,
         std::filesystem::path executable,
         std::string name,
         std::string launch_options,
-        std::string program_to_run
+        std::string program_to_run,
+        const std::vector<bool>& selected
     );
-    void editGame (std::string old_name, game updated_game);
+    void addCategory (std::string name);
+    void removeCategory (std::string name);
+    void editGame (std::string old_name, game updated_game, const std::vector<bool>& selected);
     void removeGame (std::string name);
+    std::vector<std::string> getCategories (game game);
+    std::vector<std::string> getCategoryNames ();
+    void addGameToCategory (std::string category_name, game game);
+    void removeGameFromCategory (std::string category_name, game game);
+    std::vector<category>& getCategories () {
+        return categories;
+    }
 };

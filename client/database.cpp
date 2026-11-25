@@ -126,16 +126,39 @@ void game_db::addGame (
     std::filesystem::path executable,
     std::string name,
     std::string launch_options,
-    std::string program_to_run
+    std::string program_to_run,
+    const std::vector<bool>& selected
 ) {
     games.push_back({folder_path, executable, name, launch_options, program_to_run});
+    assignCategories(games.back(), selected);
     save();
 }
 
-void game_db::editGame (std::string old_name, game updated_game) {
+void game_db::addCategory (std::string name) {
+    categories.emplace_back(std::move(name));
+    save();
+}
+
+void game_db::removeCategory (std::string name) {
+    for (size_t i = 0; i < categories.size(); i++) {
+        if (categories[i].getName() == name) {
+            categories.erase(categories.begin() + i);
+            save();
+            return;
+        }
+    }
+}
+
+void game_db::editGame (
+    std::string old_name,
+    game updated_game,
+    const std::vector<bool>& selected
+) {
     for (game& current : games) {
         if (current.name == old_name) {
+            removeFromCategories(current);
             current = std::move(updated_game);
+            assignCategories(current, selected);
             save();
             return;
         }
@@ -145,6 +168,7 @@ void game_db::editGame (std::string old_name, game updated_game) {
 void game_db::removeGame (std::string name) {
     for (size_t i = 0; i < games.size(); i++) {
         if (name == games[i].name) {
+            removeFromCategories(games[i]);
             games.erase(games.begin() + i);
             save();
             return;
@@ -157,6 +181,53 @@ void game_db::removeFromCategories (game game) {
         i.removeGame(game.name);
     }
 }
+
+void game_db::assignCategories (const game& game, const std::vector<bool>& selected) {
+    for (size_t i = 0; i < categories.size() && i < selected.size(); ++i) {
+        if (selected[i]) {
+            categories[i].addGame(game);
+        }
+    }
+}
+
+std::vector<std::string> game_db::getCategories (game game) {
+    std::vector<std::string> r;
+    for (auto& i : categories) {
+        if (i.gameExists(game.name)) {
+            r.push_back(i.getName());
+        }
+    }
+    return r;
+}
+
+std::vector<std::string> game_db::getCategoryNames () {
+    std::vector<std::string> r;
+    for (auto& i : categories) {
+        r.push_back(i.getName());
+    }
+    return r;
+}
+
+void game_db::addGameToCategory (std::string category_name, game game) {
+    for (auto& i : categories) {
+        if (i.getName() == category_name) {
+            i.addGame(std::move(game));
+            save();
+            return;
+        }
+    }
+}
+
+void game_db::removeGameFromCategory (std::string category_name, game game) {
+    for (auto& i : categories) {
+        if (i.getName() == category_name) {
+            i.removeGame(game.name);
+            save();
+            return;
+        }
+    }
+}
+
 void category::addGame (game game) {
     games.insert({game.name, game});
 }
@@ -169,4 +240,8 @@ std::vector<game> category::getGames() {
         ret.push_back(i.second);
     }
     return ret;
+}
+bool category::gameExists (std::string name) {
+    auto it = games.find(name);
+    return it != games.end();
 }
