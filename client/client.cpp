@@ -16,12 +16,7 @@
 // Pages just use virtual classes and a unique_ptr in main, factory function that populates it??
 
 // TODO
-//  - Game page gui
-//      - game launch / edit
 //  - Add game gui
-//      - process to add game
-//      - set target executable/script
-//      - select game folder/files
 //      - select category
 //  - Style so it isn't default ImGui slop
 //  - memmap db file instead of mass saving/loading?
