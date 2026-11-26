@@ -228,6 +228,10 @@ void game_db::removeGameFromCategory (std::string category_name, game game) {
     }
 }
 
+void game_db::exportGameList (std::vector<game> games) {
+    
+}
+
 void category::addGame (game game) {
     games.insert({game.name, game});
 }

@@ -4,6 +4,7 @@
 #include "elements/button.hpp"
 #include "elements/elements.hpp"
 #include "elements/text.hpp"
+#include "elements/checkbox_list.hpp"
 #include <algorithm>
 #include <cstdio>
 #include <cstdlib>
@@ -233,7 +234,7 @@ public:
             current_page& current_page = current_page::instance();
             current_page.run = false;
         }
-        for (const char* action : {"Add Game", "Add Category", "Settings"}) {
+        for (const char* action : {"Add Game", "Add Category", "Settings", "Export"}) {
             const auto& style = ImGui::GetStyle();
             if (ImGui::GetItemRectMax().x + style.ItemSpacing.x +
                 ImGui::CalcTextSize(action).x + 2 * style.FramePadding.x <=
@@ -241,7 +242,12 @@ public:
                 ImGui::SameLine();
             }
             if (ImGui::Button(action)) {
-                ImGui::OpenPopup(action);
+                if (strcmp("Export", action) == 0) {
+                    current_page& current_page = current_page::instance();
+                    current_page.set_page(pages::constructExportGamesPage());
+                } else {
+                    ImGui::OpenPopup(action);
+                }
             }
         }
         ImGui::Spacing();
@@ -324,15 +330,52 @@ std::unique_ptr<elements> pages::constructGameDetailsPage (game game) {
         page->addItem(std::make_unique<text>(i, 0.0f, 0.0f, 100.0f, 40.0f));
     }
     page->addItem(std::make_unique<button<click_handler, keydown_handler>>(
+        "Play", 0.0f, 0.0f, 100.0f, 40.0f, play_click, no_keydown
+    ));
+    page->addItem(std::make_unique<button<click_handler, keydown_handler>>(
         "Edit", 0.0f, 0.0f, 100.0f, 40.0f, edit_click, no_keydown
     ));
     page->addItem(std::make_unique<game_edit_popup>(game));
     page->addItem(std::make_unique<button<click_handler, keydown_handler>>(
-        "Play", 0.0f, 0.0f, 100.0f, 40.0f, play_click, no_keydown
-    ));
-    page->addItem(std::make_unique<button<click_handler, keydown_handler>>(
         "Delete", 0.0f, 0.0f, 100.0f, 40.0f, delete_click, no_keydown
     ));
+    page->addItem(std::make_unique<button<click_handler, keydown_handler>>(
+        "Back", 0.0f, 0.0f, 100.0f, 40.0f, back_click, no_keydown
+    ));
+    return page;
+}
+
+std::unique_ptr<elements> pages::constructExportGamesPage () {
+    auto page = std::make_unique<elements>();
+    game_db& instance = game_db::instance();
+    std::vector<game> games = instance.get_games();
+    std::vector<std::string> names;
+    for (auto& i : games) {
+        names.push_back(i.name);
+    }
+    page->addItem(std::make_unique<checkboxlist>(0, 200, names), "list");
+    const click_handler export_click = [p = page.get(), games](float, float) {
+        checkboxlist* ptr = reinterpret_cast<checkboxlist*>(p->getItem("list"));
+        auto checked = ptr->getChecked();
+        std::vector<game> out;
+        for (size_t i = 0; i < checked.size(); i++) {
+            if (checked[i]) {
+                out.push_back(games[i]);
+            }
+        }
+        game_db::exportGameList(games);
+        current_page& current_page = current_page::instance();
+        current_page.set_page(constructGameListPage());
+        return true;
+    };
+    page->addItem(std::make_unique<button<click_handler, keydown_handler>>(
+        "Export", 0.0f, 0.0f, 100.0f, 40.0f, export_click, no_keydown
+    ));
+    const click_handler back_click = [](float, float) {
+        current_page& current_page = current_page::instance();
+        current_page.set_page(constructGameListPage());
+        return true;
+    };
     page->addItem(std::make_unique<button<click_handler, keydown_handler>>(
         "Back", 0.0f, 0.0f, 100.0f, 40.0f, back_click, no_keydown
     ));

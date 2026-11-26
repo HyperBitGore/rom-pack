@@ -140,4 +140,5 @@ class game_db {
     std::vector<category>& getCategories () {
         return categories;
     }
+    static void exportGameList (std::vector<game> games);
 };
