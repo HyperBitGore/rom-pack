@@ -2,6 +2,7 @@
 #include "current_page.hpp"
 #include "database.hpp"
 #include "elements/button.hpp"
+#include "elements/checkbox.hpp"
 #include "elements/elements.hpp"
 #include "elements/text.hpp"
 #include "elements/checkbox_list.hpp"
@@ -41,10 +42,6 @@ class game_add_popup final : public item {
     char launch_executable[1024]{};
     std::vector<bool> selected_categories;
 public:
-    bool onclick (float, float) override {
-        return false;
-    }
-
     void render () override {
         if (!ImGui::BeginPopupModal("Add Game", nullptr, ImGuiWindowFlags_AlwaysAutoResize)) {
             return;
@@ -80,9 +77,6 @@ public:
         ImGui::EndPopup();
     }
 
-    bool onkeydown (int) override {
-        return false;
-    }
 };
 
 class game_edit_popup final : public item {
@@ -109,10 +103,6 @@ public:
             "%s",
             this->original.program_to_run.c_str()
         );
-    }
-
-    bool onclick (float, float) override {
-        return false;
     }
 
     void render () override {
@@ -156,18 +146,11 @@ public:
         ImGui::EndPopup();
     }
 
-    bool onkeydown (int) override {
-        return false;
-    }
 };
 
 class category_add_popup final : public item {
     char name[256]{};
 public:
-    bool onclick (float, float) override {
-        return false;
-    }
-
     void render () override {
         if (!ImGui::BeginPopupModal("Add Category", nullptr, ImGuiWindowFlags_AlwaysAutoResize)) {
             return;
@@ -187,19 +170,9 @@ public:
         ImGui::EndPopup();
     }
 
-    bool onkeydown (int) override {
-        return false;
-    }
 };
 
-using click_handler = std::function<bool(float, float)>;
-using keydown_handler =  std::function<bool(int)>;
-const click_handler no_click = [](float, float) {
-    return false;
-};
-const keydown_handler no_keydown = [](int) {
-    return false;
-};
+using click_handler = std::function<bool()>;
 
 class game_list final : public item {
     std::vector<std::pair<std::string, std::vector<game>>> sections;
@@ -219,14 +192,6 @@ public:
         if (!uncategorized.empty()) {
             sections.emplace_back("Uncategorized", std::move(uncategorized));
         }
-    }
-
-    bool onclick (float, float) override {
-        return false;
-    }
-
-    bool onkeydown (int) override {
-        return false;
     }
 
     void render () override {
@@ -292,12 +257,12 @@ std::unique_ptr<elements> pages::constructGameListPage () {
 
 std::unique_ptr<elements> pages::constructGameDetailsPage (game game) {
     auto page = std::make_unique<elements>();
-    const click_handler back_click = [](float, float) {
+    const click_handler back_click = [] {
         current_page& current_page = current_page::instance();
         current_page.set_page(constructGameListPage());
         return true;
     };
-    const click_handler play_click = [game](float, float) {
+    const click_handler play_click = [game] {
         std::string combined = game.folder_path.string() + "/" + game.executable.string();
         if (!game.program_to_run.empty()) {
             combined = game.program_to_run + " \"" + combined + "\"" + " " + game.launch_options;
@@ -308,14 +273,14 @@ std::unique_ptr<elements> pages::constructGameDetailsPage (game game) {
         return true;
     };
     
-    const click_handler delete_click = [game](float, float) {
+    const click_handler delete_click = [game] {
         game_db& instance = game_db::instance();
         instance.removeGame(game.name);
         current_page& current_page = current_page::instance();
         current_page.set_page(constructGameListPage());
         return true;
     };
-    const click_handler edit_click = [game](float, float) {
+    const click_handler edit_click = [game] {
         ImGui::OpenPopup("Edit Game");
         return true;
     };
@@ -329,18 +294,18 @@ std::unique_ptr<elements> pages::constructGameDetailsPage (game game) {
     for (auto& i : cats) {
         page->addItem(std::make_unique<text>(i, 0.0f, 0.0f, 100.0f, 40.0f));
     }
-    page->addItem(std::make_unique<button<click_handler, keydown_handler>>(
-        "Play", 0.0f, 0.0f, 100.0f, 40.0f, play_click, no_keydown
+    page->addItem(std::make_unique<button<click_handler>>(
+        "Play", 100.0f, 40.0f, play_click
     ));
-    page->addItem(std::make_unique<button<click_handler, keydown_handler>>(
-        "Edit", 0.0f, 0.0f, 100.0f, 40.0f, edit_click, no_keydown
+    page->addItem(std::make_unique<button<click_handler>>(
+        "Edit", 100.0f, 40.0f, edit_click
     ));
     page->addItem(std::make_unique<game_edit_popup>(game));
-    page->addItem(std::make_unique<button<click_handler, keydown_handler>>(
-        "Delete", 0.0f, 0.0f, 100.0f, 40.0f, delete_click, no_keydown
+    page->addItem(std::make_unique<button<click_handler>>(
+        "Delete", 100.0f, 40.0f, delete_click
     ));
-    page->addItem(std::make_unique<button<click_handler, keydown_handler>>(
-        "Back", 0.0f, 0.0f, 100.0f, 40.0f, back_click, no_keydown
+    page->addItem(std::make_unique<button<click_handler>>(
+        "Back", 100.0f, 40.0f, back_click
     ));
     return page;
 }
@@ -354,9 +319,11 @@ std::unique_ptr<elements> pages::constructExportGamesPage () {
         names.push_back(i.name);
     }
     page->addItem(std::make_unique<checkboxlist>(0, 200, names), "list");
-    const click_handler export_click = [p = page.get(), games](float, float) {
-        checkboxlist* ptr = reinterpret_cast<checkboxlist*>(p->getItem("list"));
-        auto checked = ptr->getChecked();
+    const click_handler export_click = [p = page.get(), games] {
+        checkboxlist* list_ptr = reinterpret_cast<checkboxlist*>(p->getItem("list"));
+        checkbox<click_handler>* ptr2 = reinterpret_cast<checkbox<click_handler>*>(p->getItem("enable-cats"));
+        auto checked = list_ptr->getChecked();
+        bool get_cats = ptr2->getEnabled();
         std::vector<game> out;
         for (size_t i = 0; i < checked.size(); i++) {
             if (checked[i]) {
@@ -368,16 +335,23 @@ std::unique_ptr<elements> pages::constructExportGamesPage () {
         current_page.set_page(constructGameListPage());
         return true;
     };
-    page->addItem(std::make_unique<button<click_handler, keydown_handler>>(
-        "Export", 0.0f, 0.0f, 100.0f, 40.0f, export_click, no_keydown
+    const click_handler enable_categories = [] {
+
+        return true;
+    };
+    page->addItem(std::make_unique<checkbox<click_handler>>(
+        "Enable Categories", enable_categories
+    ), "enable-cats");
+    page->addItem(std::make_unique<button<click_handler>>(
+        "Export", 100.0f, 40.0f, export_click
     ));
-    const click_handler back_click = [](float, float) {
+    const click_handler back_click = [] {
         current_page& current_page = current_page::instance();
         current_page.set_page(constructGameListPage());
         return true;
     };
-    page->addItem(std::make_unique<button<click_handler, keydown_handler>>(
-        "Back", 0.0f, 0.0f, 100.0f, 40.0f, back_click, no_keydown
+    page->addItem(std::make_unique<button<click_handler>>(
+        "Back", 100.0f, 40.0f, back_click
     ));
     return page;
 }

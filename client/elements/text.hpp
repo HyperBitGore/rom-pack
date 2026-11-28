@@ -23,14 +23,8 @@ class text : public item {
           w{w},
           h{h},
           str{std::move(str)} {}
-    bool onclick (float x, float y) override {
-        return false;
-    }
     void render () override {
         ImGui::Text("%s", str.c_str());
-    }
-    bool onkeydown (int key) override {
-        return false;
     }
 
 };

@@ -18,6 +18,7 @@
 
 // TODO
 //  - export game pack
+//      - need support for game types with no path just the raw data saved in pack
 //  - memmap db file instead of mass saving/loading?
 //  - Server
 //      - Login

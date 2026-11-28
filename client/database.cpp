@@ -227,7 +227,7 @@ void game_db::removeGameFromCategory (std::string category_name, game game) {
         }
     }
 }
-
+// TODO categories
 void game_db::exportGameList (std::vector<game> games) {
     
 }

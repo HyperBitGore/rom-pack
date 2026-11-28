@@ -25,9 +25,6 @@ class checkboxlist : public item {
                 checked.push_back(0);
             }
           }
-    bool onclick (float x, float y) override {
-        return false;
-    }
     void render () override {
         if (ImGui::BeginChild("CheckboxList", ImVec2(width, height), ImGuiChildFlags_Borders)) {
             for (int i = 0; i < items.size(); i++) {
@@ -37,9 +34,6 @@ class checkboxlist : public item {
             }
         }
         ImGui::EndChild();
-    }
-    bool onkeydown (int key) override {
-        return false;
     }
     std::vector<uint8_t> getChecked() {
         return checked;
